@@ -1,2 +1,2 @@
-# VolleyCourt-mapping
-Android application for volleyball court mapping and locating players inside court
+# VolleyCourt Mapping
+Android application for volleyball court mapping and to locate players inside court
