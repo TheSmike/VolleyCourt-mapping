@@ -11,9 +11,117 @@
         android:layout_width="match_parent"
         android:layout_height="410dp"
         android:layout_marginTop="8dp"
+        android:contentDescription="@string/image_preview"
         android:scaleType="fitXY"
         android:src="@mipmap/ic_launcher"
-        app:layout_constraintTop_toTopOf="parent"
-        android:contentDescription="@string/image_preview" />
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_MaxThreshCanny"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Canny max Th."
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_MinThreshCanny"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <SeekBar
+        android:id="@+id/seekBar_MaxThreshCanny"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="120dp"
+        android:layout_marginBottom="8dp"
+        android:max="256"
+        android:progress="80"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_MinThreshCanny" />
+
+    <TextView
+        android:id="@+id/tv_MinThreshCanny"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Canny min Th."
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <SeekBar
+        android:id="@+id/seekBar_MinThreshCanny"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="120dp"
+        android:layout_marginBottom="8dp"
+        android:max="256"
+        android:progress="100"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+
+    <TextView
+        android:id="@+id/tv_HoughMinLength"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Hough min. length"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_MaxThreshCanny"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <SeekBar
+        android:id="@+id/seekBar_HoughMinLength"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="120dp"
+        android:layout_marginBottom="8dp"
+        android:max="250"
+        android:progress="125"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_MaxThreshCanny" />
+
+    <TextView
+        android:id="@+id/tv_HoughVotes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Hough votes"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMinLength"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <SeekBar
+        android:id="@+id/seekBar_HoughVotes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="120dp"
+        android:layout_marginBottom="8dp"
+        android:max="50"
+        android:progress="5"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMinLength" />
+
+    <TextView
+        android:id="@+id/tv_HoughMaxDistance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Hough max dist."
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <SeekBar
+        android:id="@+id/seekBar_HoughMaxDistance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="120dp"
+        android:layout_marginBottom="8dp"
+        android:max="50"
+        android:progress="25"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes" />
+
+    <Button
+        android:id="@+id/btn_Transform"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:onClick="transformImage"
+        android:text="Transform"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </android.support.constraint.ConstraintLayout>

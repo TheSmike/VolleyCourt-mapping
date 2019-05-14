@@ -2,4 +2,6 @@
     <string name="app_name">Volleyball Court Mapping</string>
     <string name="action_OpenGallery">open gallery</string>
     <string name="image_preview">image Preview</string>
+    <string name="action_canny">Canny</string>
+    <string name="action_hough">Hough</string>
 </resources>

@@ -13,7 +13,7 @@ public class PermissionSupport {
 
     private static final int MY_PERMISSIONS_REQUEST_STORAGE = 1;
 
-    private static void validateReadStoragePermission(Activity context) {
+    public static void validateReadStoragePermission(Activity context) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "Permission is not granted");
             ActivityCompat.requestPermissions(context,

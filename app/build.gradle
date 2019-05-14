@@ -28,5 +28,5 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'org.tensorflow:tensorflow-android:1.13.1'
     implementation 'org.apache.commons:commons-lang3:3.0'
-    implementation project(':openCVLibrary343')
+    implementation project(':openCVLibrary310')
 }

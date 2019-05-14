@@ -1,46 +1,62 @@
 package it.scarpentim.volleycourtmapping;
 
-import android.Manifest;
-import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.Point;
 import android.net.Uri;
-import android.provider.MediaStore;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import org.opencv.android.Utils;
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "volleyCourt";
 
-
     private static final int SELECT_PICTURE = 1;
+    public static final String LAST_IMAGE = "LAST_IMAGE";
 
     private String selectedImagePath;
-    Mat sampledImage=null;
-    Mat originalImage=null;
-    Mat greyImage=null;
+
+    private ImageSupport imageSupport = null;
+    VolleySeekBarHandler seekBarHandler;
+
+    private Mat sampledImage = null;
+    private Mat drawedImage;
+    private SharedPreferences sharedPref;
+
+    private enum ShowType{
+        IMAGE,
+        CANNY,
+        HOUGH
+    }
+
+    private ShowType show = ShowType.IMAGE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        imageSupport = new ImageSupport(this);
+        seekBarHandler = new VolleySeekBarHandler(this);
+        sharedPref = this.getPreferences(Context.MODE_PRIVATE);
+        selectedImagePath = sharedPref.getString(LAST_IMAGE, null);
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,this, mLoaderCallback);
     }
 
     @Override
@@ -52,15 +68,33 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_openGallery) {
-            PermissionSupport.validateReadStoragePermission();
-            Intent intent = new Intent();
-            intent.setType("image/*");
-            intent.setAction(Intent.ACTION_PICK);
-            startActivityForResult(Intent.createChooser(intent,"Select image"), SELECT_PICTURE);
-            return true;
+        switch (id){
+            case R.id.action_openGallery:
+                show = ShowType.IMAGE;
+                PermissionSupport.validateReadStoragePermission(this);
+                Intent intent = new Intent();
+                intent.setType("image/*");
+                intent.setAction(Intent.ACTION_PICK);
+                startActivityForResult(Intent.createChooser(intent,"Select image"), SELECT_PICTURE);
+                return true;
+
+            case R.id.action_Canny:
+                if (checkImageLoaded()){
+                    show = ShowType.CANNY;
+                    showImage();
+                    return true;
+                }
+
+            case R.id.action_Hough:
+                if (checkImageLoaded()){
+                    show = ShowType.HOUGH;
+                    showImage();
+                    return true;
+                }
+
         }
         return super.onOptionsItemSelected(item);
+
     }
 
 
@@ -70,68 +104,79 @@ public class MainActivity extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             if (requestCode == SELECT_PICTURE) {
                 Uri selectedImageUri = data.getData();
-                selectedImagePath = getPath(selectedImageUri);
-                Log.i(TAG, "selectedImagePath: " + selectedImagePath);
-                //loadImage(selectedImagePath);
-                loadImage(selectedImagePath);
-                displayImage(sampledImage);
+                selectedImagePath = imageSupport.getPath(selectedImageUri);
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putString(LAST_IMAGE, selectedImagePath);
+                editor.commit();
+                loadImageFromPath();
             }
         }
     }
 
-    private void loadImage(String path) {
-        originalImage = Imgcodecs.imread(path);
-        Mat rgbImage = new Mat();
-        Imgproc.cvtColor(originalImage, rgbImage, Imgproc.COLOR_BGR2RGB);
-        Display display = getWindowManager().getDefaultDisplay();
-// Qui va selezionato l'import della classe "android graphics Point" !
-        Point size = new Point();
-        display.getSize(size);
-        int width = size.x;
-        int height = size.y;
-        sampledImage = new Mat();
-        double downSampleRatio = calculateSubSampleSize(rgbImage, width, height);
-        Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
-                downSampleRatio, Imgproc.INTER_AREA);
+    private void loadImageFromPath() {
+        if (selectedImagePath != null) {
+            Log.i(TAG, "selectedImagePath: " + selectedImagePath);
+            sampledImage = imageSupport.loadImage(selectedImagePath);
+            Bitmap bitmap = imageSupport.matToBitmap(sampledImage);
+            ImageView iv = findViewById(R.id.ivPreview);
+            iv.setImageBitmap(bitmap);
+        }
     }
 
-    private double calculateSubSampleSize(Mat srcImage, int reqWidth, int reqHeight) {
-        // Recuperiamo l'altezza e larghezza dell'immagine sorgente
-        int height = srcImage.height();
-        int width = srcImage.width();
-        double inSampleSize = 1;
-        if (height > reqHeight || width > reqWidth) {
-            // Calcoliamo i rapporti tra altezza e larghezza richiesti e quelli dell'immagine sorgente
-            double heightRatio = (double) reqHeight / (double) height;
-            double widthRatio = (double) reqWidth / (double) width;
-            // Scegliamo tra i due rapporti il minore
-            inSampleSize = heightRatio<widthRatio ? heightRatio :widthRatio;
-        }
-        return inSampleSize;
-    }
+    public void showImage() {
+        if (!checkImageLoaded()) return;
+        Bitmap bitmap;
 
-    private String getPath(Uri uri) {
-        if (uri == null) {
-            return null;
+        switch (show) {
+            case IMAGE:
+                bitmap = imageSupport.matToBitmap(sampledImage);
+                break;
+            case CANNY:
+                Mat cannyMat = imageSupport.cannyFilter(sampledImage, seekBarHandler);
+                bitmap = imageSupport.matToBitmap(cannyMat);
+                break;
+            case HOUGH:
+                Mat houghMat = imageSupport.houghTransform(sampledImage, seekBarHandler);
+                drawedImage = imageSupport.drawHoughLines(sampledImage, houghMat);
+                bitmap = imageSupport.matToBitmap(drawedImage);
+                break;
+            default:
+                return;
         }
-        String[] projection = {MediaStore.Images.Media.DATA};
-        Cursor cursor = getContentResolver().query(uri, projection,null, null, null);
-        if (cursor != null) {
-            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-            cursor.moveToFirst();
-            return cursor.getString(column_index);
-        }
-        return uri.getPath();
-    }
 
-    private void displayImage(Mat image)
-    {
-    // Creiamo una Bitmap
-        Bitmap bitMap = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.RGB_565);
-        // Convertiamo l'immagine di tipo Mat in una Bitmap
-        Utils.matToBitmap(image, bitMap);
-        // Collego la ImageView e gli assegno la BitMap
         ImageView iv = findViewById(R.id.ivPreview);
-        iv.setImageBitmap(bitMap);
+        iv.setImageBitmap(bitmap);
+    }
+
+
+    private boolean checkImageLoaded() {
+        if (sampledImage == null){
+            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+        @Override
+        public void onManagerConnected(int status) {
+            switch (status) {
+                case LoaderCallbackInterface.SUCCESS:
+                    Log.i(TAG, "OpenCV loaded successfully");
+                    loadImageFromPath();
+                    break;
+                default:
+                    super.onManagerConnected(status);
+                    break;
+            }
+        }
+    };
+
+    public void transformImage(View view) {
+        if (drawedImage == null){
+            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
     }
 }
