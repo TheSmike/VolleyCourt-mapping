@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,12 +13,19 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
+import java.util.List;
+
+import it.scarpentim.volleycourtmapping.classification.Classifier;
+import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -30,10 +38,15 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageSupport imageSupport = null;
     VolleySeekBarHandler seekBarHandler;
+    OnVolleyTouchHandler onTouchListener;
 
     private Mat sampledImage = null;
     private Mat drawedImage;
     private SharedPreferences sharedPref;
+    private boolean isPerspectiveApplied = false;
+
+    Classifier classifier;
+
 
     private enum ShowType{
         IMAGE,
@@ -47,10 +60,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        imageSupport = new ImageSupport(this);
         seekBarHandler = new VolleySeekBarHandler(this);
         sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         selectedImagePath = sharedPref.getString(LAST_IMAGE, null);
+        onTouchListener = new OnVolleyTouchHandler(this);
+        findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
+        classifier = ClassifierFactory.getYolov3Instance(this);
+        imageSupport = new ImageSupport(this, classifier.getLabels());
     }
 
     @Override
@@ -117,6 +133,9 @@ public class MainActivity extends AppCompatActivity {
         if (selectedImagePath != null) {
             Log.i(TAG, "selectedImagePath: " + selectedImagePath);
             sampledImage = imageSupport.loadImage(selectedImagePath);
+            isPerspectiveApplied = false;
+            onTouchListener.reset();
+            onTouchListener.setImage(sampledImage);
             Bitmap bitmap = imageSupport.matToBitmap(sampledImage);
             ImageView iv = findViewById(R.id.ivPreview);
             iv.setImageBitmap(bitmap);
@@ -149,6 +168,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public void showImage(Mat image) {
+        if (!checkImageLoaded()) return;
+        Bitmap bitmap;
+        bitmap = imageSupport.matToBitmap(image);
+        ImageView iv = findViewById(R.id.ivPreview);
+        iv.setImageBitmap(bitmap);
+    }
+
     private boolean checkImageLoaded() {
         if (sampledImage == null){
             Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
@@ -173,10 +200,56 @@ public class MainActivity extends AppCompatActivity {
     };
 
     public void transformImage(View view) {
-        if (drawedImage == null){
+        if (isPerspectiveApplied) {
+            isPerspectiveApplied = false;
+            onTouchListener.reset();
+            onTouchListener.setImage(sampledImage);
+            showImage(sampledImage);
+        } else {
+            if (sampledImage == null) {
+                Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (onTouchListener.getCorners().size() != 4) {
+                Context context = getApplicationContext();
+                CharSequence text = "Bisogna selezionare 4 vertici!";
+                int duration = Toast.LENGTH_LONG;
+                Toast toast = Toast.makeText(context, text, duration);
+                toast.show();
+            } else {
+                isPerspectiveApplied = true;
+                Mat projectiveMat = imageSupport.courtProjectiveMat(onTouchListener.getCorners());
+                Mat correctedImage = new Mat(800, 800, 1);
+
+                Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
+                showImage(correctedImage);
+            }
+        }
+    }
+
+    public void classifyImage(View view){
+        if (sampledImage == null) {
             Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
             return;
         }
+        new ComputeTask().execute(sampledImage);
+    }
 
+    private class ComputeTask extends AsyncTask<Mat, String, List<Classifier.Recognition>>{
+
+        Mat tmpMat;
+        @Override
+        protected List<Classifier.Recognition> doInBackground(Mat... mats) {
+            Mat mat = imageSupport.resizeForYolo(mats[0]);
+            List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(mat));
+            tmpMat = imageSupport.drawBoxes(mats[0], recognitions, 0.2);
+            return recognitions;
+        }
+
+        @Override
+        protected void onPostExecute(List<Classifier.Recognition> mat) {
+            super.onPostExecute(mat);
+            showImage(tmpMat);
+        }
     }
 }

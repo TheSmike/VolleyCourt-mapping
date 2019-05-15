@@ -15,8 +15,8 @@ class LineFunction {
         this.xEnd = xEnd;
         this.yEnd = yEnd;
 
-        if ((xEnd - xStart) == 0)
-            throw new UnsupportedOperationException();
+//        if ((xEnd - xStart) == 0)
+//            throw new UnsupportedOperationException();
         m = (yEnd - yStart) / (xEnd - xStart);
         b = yStart - m * xStart;
     }

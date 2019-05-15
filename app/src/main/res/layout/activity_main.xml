@@ -121,7 +121,18 @@
         android:text="Transform"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_bias="0.24"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_classify"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="56dp"
+        android:layout_marginBottom="8dp"
+        android:text="Classify"
+        android:onClick="classifyImage"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
+        app:layout_constraintStart_toEndOf="@+id/btn_Transform" />
 
 </android.support.constraint.ConstraintLayout>

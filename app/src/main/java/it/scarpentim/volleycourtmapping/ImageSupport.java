@@ -9,15 +9,25 @@ import android.util.Log;
 import android.view.Display;
 
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.utils.Converters;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import it.scarpentim.volleycourtmapping.classification.Classifier;
+
+import static org.opencv.core.Core.FILLED;
+import static org.opencv.core.Core.LINE_AA;
 
 public class ImageSupport {
 
@@ -25,10 +35,31 @@ public class ImageSupport {
 
     private static final double MARGIN = 0.1;
     private static final double MAX_DISTANCE = 5;
+    private static final double COLS = 800;
+    private static final double ROWS = 800;
+    public static final int YOLO_SIZE = 416;
     private MainActivity activity;
 
-    public ImageSupport(MainActivity mainActivity) {
+    private static final Scalar WHITE = new Scalar(255,255,255);
+    private static final Scalar BLACK = new Scalar(0,0,0);
+    private static final Map<String, Scalar> colors = new HashMap<>();
+
+    private float widthRatio;
+    private float heightRatio;
+
+    public ImageSupport(MainActivity mainActivity, String[] labels) {
         this.activity = mainActivity;
+
+        int r = 200;
+        int g = 150;
+        int b = 100;
+
+        for (int i = 0; i < labels.length; i++) {
+            r = (r + ((i+0) % 3 == 0 ? 0 : 103)) % 256;
+            g = (g + ((i+1) % 3 == 0 ? 0 : 111)) % 256;
+            b = (b + ((i+2) % 3 == 0 ? 0 : 117)) % 256;
+            colors.put(labels[i], new Scalar(r,g,b));
+        }
     }
 
     public Mat loadImage(String path) {
@@ -45,6 +76,10 @@ public class ImageSupport {
         double downSampleRatio = calculateSubSampleSize(rgbImage, width, height);
         Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
                 downSampleRatio, Imgproc.INTER_AREA);
+
+        this.widthRatio = (float)sampledImage.cols() / YOLO_SIZE;
+        this.heightRatio = (float)sampledImage.rows() / YOLO_SIZE;
+
         return sampledImage;
     }
 
@@ -147,8 +182,8 @@ public class ImageSupport {
                     if (similarSlope(fzs.get(i), fzs.get(j)) && somePointsNear(fzs.get(i), fzs.get(j))) {
                         Log.d(TAG, "linee parallele e vicine, equazioni:");
                         Log.d(TAG, String.format("y%d = %fx+%f", j, fzs.get(j).m,fzs.get(j).b));
-                        setUnionLine(fzs.get(i), fzs.get(j));
-                        fzs.remove(j);
+                        //setUnionLine(fzs.get(i), fzs.get(j));
+                        //fzs.remove(j);
                     }
                 }
             }
@@ -180,7 +215,7 @@ public class ImageSupport {
 //            double b = yStart - m * xStart;
 //
 //            Log.d(TAG, String.format("Verifica per y = %fx+%f", m,b));
-//            int c = 0;
+//            int classifier = 0;
 //            for (int j = 0; j < fzs.size(); j++) {
 //                if (i != j){
 //                    if (m > fzs.get(j).m - MARGIN && m < fzs.get(j).m + MARGIN)
@@ -264,5 +299,62 @@ public class ImageSupport {
 
     private boolean similarSlope(LineFunction f1, LineFunction f2) {
         return f1.m > f2.m - MARGIN && f1.m < f2.m + MARGIN;
+    }
+
+    public Mat courtProjectiveMat(List<org.opencv.core.Point> corners) {
+
+        Mat srcPoints = Converters.vector_Point2f_to_Mat(corners);
+        Mat destPoints = Converters.vector_Point2f_to_Mat(
+                Arrays.asList(
+                        new org.opencv.core.Point[]{
+                                new org.opencv.core.Point(COLS, ROWS),
+                                new org.opencv.core.Point(0, ROWS),
+                                new org.opencv.core.Point(0, 0),
+                                new org.opencv.core.Point(COLS, 0)
+                        }
+                )
+        );
+        Mat transformation = Imgproc.getPerspectiveTransform(srcPoints, destPoints);
+        return transformation;
+    }
+
+    public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes, double confidenceThreshold) {
+        Mat boxesImage = new Mat();
+        image.copyTo(boxesImage);
+        Scalar color;
+
+
+        for (Classifier.Recognition box : boxes) {
+            Log.i(TAG, String.valueOf(box));
+            if (box.getConfidence() > confidenceThreshold) {
+                color = colors.get(box.getTitle());
+
+                org.opencv.core.Point pt1 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
+                org.opencv.core.Point pt2 = new org.opencv.core.Point(box.getLocation().right * widthRatio, box.getLocation().bottom * heightRatio);
+                Imgproc.rectangle(boxesImage, pt1, pt2, color, 3);
+                org.opencv.core.Point pt3 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
+                org.opencv.core.Point pt4 = new org.opencv.core.Point(Math.min(box.getLocation().right, box.getLocation().left + (box.getTitle().length() * 13)) * widthRatio, (box.getLocation().top + 11) * heightRatio);
+                Imgproc.rectangle(boxesImage, pt3, pt4, color, FILLED);
+
+                pt1.set(new double[] {pt1.x + 2*heightRatio, (pt1.y + 10*heightRatio)});
+                Imgproc.putText(boxesImage, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (isLight(color)?BLACK:WHITE), (int) (1 * heightRatio));
+            }
+        }
+
+        return boxesImage;
+    }
+
+    private boolean isLight(Scalar color) {
+        double r = color.val[0];
+        double g = color.val[1];
+        double b = color.val[2];
+        double sum = r+g+b;
+        return r + g > 210*2 ||  sum > (225*3);
+    }
+
+    public Mat resizeForYolo(Mat mat) {
+        Mat returnMat = new Mat(YOLO_SIZE, YOLO_SIZE, mat.type());
+        Imgproc.resize(mat, returnMat, returnMat.size());
+        return returnMat;
     }
 }
