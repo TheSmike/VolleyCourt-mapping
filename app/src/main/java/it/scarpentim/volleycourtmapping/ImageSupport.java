@@ -27,7 +27,6 @@ import java.util.Map;
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 
 import static org.opencv.core.Core.FILLED;
-import static org.opencv.core.Core.LINE_AA;
 
 public class ImageSupport {
 
@@ -35,8 +34,6 @@ public class ImageSupport {
 
     private static final double MARGIN = 0.1;
     private static final double MAX_DISTANCE = 5;
-    private static final double COLS = 800;
-    private static final double ROWS = 800;
     public static final int YOLO_SIZE = 416;
     private MainActivity activity;
 
@@ -46,10 +43,25 @@ public class ImageSupport {
 
     private float widthRatio;
     private float heightRatio;
+    private int screenWidth;
+    private int screenHeight;
 
     public ImageSupport(MainActivity mainActivity, String[] labels) {
         this.activity = mainActivity;
+        initColors(labels);
+        initDisplaySize();
+    }
 
+    private void initDisplaySize() {
+        Display display = activity.getWindowManager().getDefaultDisplay();
+        // Qui va selezionato l'import della classe "android graphics Point" !
+        Point size = new Point();
+        display.getSize(size);
+        screenWidth = size.x;
+        screenHeight = size.y;
+    }
+
+    private void initColors(String[] labels) {
         int r = 200;
         int g = 150;
         int b = 100;
@@ -66,14 +78,8 @@ public class ImageSupport {
         Mat originalImage = Imgcodecs.imread(path);
         Mat rgbImage = new Mat();
         Imgproc.cvtColor(originalImage, rgbImage, Imgproc.COLOR_BGR2RGB);
-        Display display = activity.getWindowManager().getDefaultDisplay();
-        // Qui va selezionato l'import della classe "android graphics Point" !
-        Point size = new Point();
-        display.getSize(size);
-        int width = size.x;
-        int height = size.y;
         Mat sampledImage = new Mat();
-        double downSampleRatio = calculateSubSampleSize(rgbImage, width, height);
+        double downSampleRatio = calculateSubSampleSize(rgbImage, screenWidth, screenHeight);
         Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
                 downSampleRatio, Imgproc.INTER_AREA);
 
@@ -156,7 +162,7 @@ public class ImageSupport {
                     yEnd = line[3];
             org.opencv.core.Point lineStart = new org.opencv.core.Point(xStart, yStart);
             org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
-            Imgproc.line(resultMat, lineStart, lineEnd, new Scalar(255, 0, 0), 1);
+            Imgproc.line(resultMat, lineStart, lineEnd, new Scalar(255, 0, 0), 2);
         }
         return resultMat;
     }
@@ -301,23 +307,6 @@ public class ImageSupport {
         return f1.m > f2.m - MARGIN && f1.m < f2.m + MARGIN;
     }
 
-    public Mat courtProjectiveMat(List<org.opencv.core.Point> corners) {
-
-        Mat srcPoints = Converters.vector_Point2f_to_Mat(corners);
-        Mat destPoints = Converters.vector_Point2f_to_Mat(
-                Arrays.asList(
-                        new org.opencv.core.Point[]{
-                                new org.opencv.core.Point(COLS, ROWS),
-                                new org.opencv.core.Point(0, ROWS),
-                                new org.opencv.core.Point(0, 0),
-                                new org.opencv.core.Point(COLS, 0)
-                        }
-                )
-        );
-        Mat transformation = Imgproc.getPerspectiveTransform(srcPoints, destPoints);
-        return transformation;
-    }
-
     public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes, double confidenceThreshold) {
         Mat boxesImage = new Mat();
         image.copyTo(boxesImage);
@@ -356,5 +345,33 @@ public class ImageSupport {
         Mat returnMat = new Mat(YOLO_SIZE, YOLO_SIZE, mat.type());
         Imgproc.resize(mat, returnMat, returnMat.size());
         return returnMat;
+    }
+
+    public Mat projectOnHalfCourt(List<org.opencv.core.Point> corners, Mat sampledImage) {
+
+        int maxSize = Math.min(screenHeight, screenWidth);
+        Mat projectiveMat = courtProjectiveMat(corners, maxSize);
+        Mat correctedImage = new Mat(maxSize, maxSize, 1);
+
+        Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
+
+        return correctedImage;
+    }
+
+    public Mat courtProjectiveMat(List<org.opencv.core.Point> corners, int maxSize) {
+
+        Mat srcPoints = Converters.vector_Point2f_to_Mat(corners);
+        Mat destPoints = Converters.vector_Point2f_to_Mat(
+                Arrays.asList(
+                        new org.opencv.core.Point[]{
+                                new org.opencv.core.Point(maxSize, maxSize),
+                                new org.opencv.core.Point(0, maxSize),
+                                new org.opencv.core.Point(0, 0),
+                                new org.opencv.core.Point(maxSize, 0)
+                        }
+                )
+        );
+        Mat transformation = Imgproc.getPerspectiveTransform(srcPoints, destPoints);
+        return transformation;
     }
 }

@@ -218,10 +218,8 @@ public class MainActivity extends AppCompatActivity {
                 toast.show();
             } else {
                 isPerspectiveApplied = true;
-                Mat projectiveMat = imageSupport.courtProjectiveMat(onTouchListener.getCorners());
-                Mat correctedImage = new Mat(800, 800, 1);
 
-                Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
+                Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
                 showImage(correctedImage);
             }
         }
