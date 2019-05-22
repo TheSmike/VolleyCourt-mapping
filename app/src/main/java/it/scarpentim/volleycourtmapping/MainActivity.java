@@ -20,6 +20,8 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.List;
@@ -151,13 +153,20 @@ public class MainActivity extends AppCompatActivity {
                 bitmap = imageSupport.matToBitmap(sampledImage);
                 break;
             case CANNY:
-                Mat cannyMat = imageSupport.cannyFilter(sampledImage, seekBarHandler);
+                Mat maskedCMat = imageSupport.colorMask(sampledImage);
+                Mat cannyMat = imageSupport.cannyFilter(maskedCMat, seekBarHandler);
                 bitmap = imageSupport.matToBitmap(cannyMat);
                 break;
             case HOUGH:
-                Mat houghMat = imageSupport.houghTransform(sampledImage, seekBarHandler);
-                drawedImage = imageSupport.drawHoughLines(sampledImage, houghMat);
+                Mat maskedMat = imageSupport.colorMask(sampledImage);
+                Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
+                drawedImage = imageSupport.drawHoughLines(maskedMat, houghMat);
                 bitmap = imageSupport.matToBitmap(drawedImage);
+
+//                Mat houghMat = imageSupport.houghTransformWithColorFilter(sampledImage, seekBarHandler);
+//                drawedImage = imageSupport.drawHoughLines(sampledImage, houghMat);
+//                bitmap = imageSupport.matToBitmap(drawedImage);
+
                 break;
             default:
                 return;
@@ -200,6 +209,36 @@ public class MainActivity extends AppCompatActivity {
     };
 
     public void transformImage(View view) {
+        if (isPerspectiveApplied) {
+            isPerspectiveApplied = false;
+            onTouchListener.reset();
+            onTouchListener.setImage(sampledImage);
+            showImage(sampledImage);
+        } else {
+            if (sampledImage == null) {
+                Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            isPerspectiveApplied = true;
+
+            Mat maskedMat = imageSupport.colorMask(sampledImage);
+            Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
+            List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+
+            Mat drawedMat =  sampledImage.clone();
+            for (Point corner : corners) {
+                Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
+            }
+            showImage(drawedMat);
+
+            //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
+            //showImage(correctedImage);
+
+            }
+    }
+
+    public void manualTransformImage(View view) {
         if (isPerspectiveApplied) {
             isPerspectiveApplied = false;
             onTouchListener.reset();

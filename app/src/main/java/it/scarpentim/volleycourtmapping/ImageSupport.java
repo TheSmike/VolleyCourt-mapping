@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
@@ -32,7 +33,7 @@ public class ImageSupport {
 
     private static final String TAG = "volleyCourt";
 
-    private static final double MARGIN = 0.1;
+    private static final double MARGIN = 0.01745 * 10;
     private static final double MAX_DISTANCE = 5;
     public static final int YOLO_SIZE = 416;
     private MainActivity activity;
@@ -153,6 +154,7 @@ public class ImageSupport {
         Mat resultMat = sampledImage.clone();
 
         Mat newLines = mergeNearParallelLines(lines);
+//        Mat newLines = lines;
 
         for (int i = 0; i < newLines.rows(); i++) {
             double[] line = newLines.get(i, 0);
@@ -169,28 +171,25 @@ public class ImageSupport {
 
     private Mat mergeNearParallelLines(Mat lines) {
 
-        List<LineFunction> fzs = new ArrayList<>();
+        List<LineFunction> fzs = matToLineFunction(lines);
 
-        for (int i = 0; i < lines.rows(); i++) {
-            double[] line = lines.get(i, 0);
-            double  xStart = line[0],
-                    yStart = line[1],
-                    xEnd = line[2],
-                    yEnd = line[3];
-            LineFunction f = new LineFunction(xStart, yStart, xEnd, yEnd);
-            fzs.add(f);
-        }
+        ListIterator<LineFunction> iterator1 = fzs.listIterator();
+        while(iterator1.hasNext()){
+            LineFunction fz1 = iterator1.next();
 
-        for (int i = 0; i < fzs.size(); i++) {
+            ListIterator<LineFunction> iterator2 = fzs.listIterator();
+            while(iterator2.hasNext()) {
+                LineFunction fz2 = iterator2.next();
 
-            for (int j = 0; j < fzs.size(); j++) {
-                if (i != j){
-                    if (similarSlope(fzs.get(i), fzs.get(j)) && somePointsNear(fzs.get(i), fzs.get(j))) {
-                        Log.d(TAG, "linee parallele e vicine, equazioni:");
-                        Log.d(TAG, String.format("y%d = %fx+%f", j, fzs.get(j).m,fzs.get(j).b));
-                        //setUnionLine(fzs.get(i), fzs.get(j));
-                        //fzs.remove(j);
-                    }
+                if(fz1.equals(fz2))
+                    continue;
+
+                if (similarNearSegment(fz1, fz2)) {
+                    Log.d(TAG, "linee parallele e vicine, equazioni:");
+                    Log.d(TAG, String.format("y = %fx+%f", fz2.m, fz2.b));
+                    setUnionLine(fz2, fz1);
+                    iterator1.remove();
+                    break;
                 }
             }
         }
@@ -247,6 +246,22 @@ public class ImageSupport {
 
     }
 
+    private boolean similarNearSegment(LineFunction fz1, LineFunction fz2) {
+        return similarSlopeLines(fz1, fz2)
+                && nearSegments(fz1, fz2);
+    }
+
+    private List<LineFunction> matToLineFunction(Mat lines) {
+        List<LineFunction> fzs = new ArrayList<>();
+
+        for (int i = 0; i < lines.rows(); i++) {
+            double[] line = lines.get(i, 0);
+            LineFunction f = new LineFunction(lines.get(i, 0));
+            fzs.add(f);
+        }
+        return fzs;
+    }
+
     private void setUnionLine(LineFunction f1, LineFunction f2) {
         double xSx, ySx;
         if (f1.xStart < f1.xEnd && f1.xStart < f2.xStart && f1.xStart < f2.xEnd){
@@ -284,27 +299,24 @@ public class ImageSupport {
 
     }
 
-    private boolean somePointsNear(LineFunction f1, LineFunction f2) {
-
-        double y;
-        y = f1.compute(f2.xStart);
-        if (y > f2.yStart - MAX_DISTANCE && y < f2.yStart + MAX_DISTANCE)
-            return true;
-
-        y = f1.compute(f2.xEnd);
-        if (y > f2.yStart - MAX_DISTANCE && y < f2.yStart + MAX_DISTANCE)
-            return true;
-
-        return false;
+    /**
+     * Verifica se due rette sono vicine l'una all'altra
+     * @param f1
+     * @param f2
+     * @return
+     */
+    private boolean nearSegments(LineFunction f1, LineFunction f2) {
+//        Log.v(TAG, "distanza tra rette " + f1 + " " + f2 + " --> " + d);
+        return (f1.distanceSegmentToPoint(f2.getStartPoint()) < MAX_DISTANCE
+                || f1.distanceSegmentToPoint(f2.getEndPoint()) < MAX_DISTANCE
+                || f2.distanceSegmentToPoint(f1.getStartPoint()) < MAX_DISTANCE
+                || f2.distanceSegmentToPoint(f1.getEndPoint()) < MAX_DISTANCE);
     }
 
-    private boolean areNear(double x1, double y1, double x2, double y2) {
-        return x1 > x2 - MAX_DISTANCE && x1 < x2 + MAX_DISTANCE
-                && y1 > y2 - MAX_DISTANCE && y1 < y2 + MAX_DISTANCE;
-    }
-
-    private boolean similarSlope(LineFunction f1, LineFunction f2) {
-        return f1.m > f2.m - MARGIN && f1.m < f2.m + MARGIN;
+    private boolean similarSlopeLines(LineFunction f1, LineFunction f2) {
+        double atanF1 = Math.atan(f1.m);
+        double atanF2 = Math.atan(f2.m);
+        return atanF1 > atanF2 - MARGIN && atanF1 < atanF2 + MARGIN;
     }
 
     public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes, double confidenceThreshold) {
@@ -373,5 +385,86 @@ public class ImageSupport {
         );
         Mat transformation = Imgproc.getPerspectiveTransform(srcPoints, destPoints);
         return transformation;
+    }
+
+    public Mat houghTransformWithColorFilter(Mat image, VolleySeekBarHandler seekBarHandler) {
+        Mat mask = new Mat();
+        Scalar lowerB, upperB;
+        Log.d(TAG, "tipo immagine: " + image.type());
+        lowerB = new Scalar(0, 0, 60); //rgb(34, 86, 107)
+        upperB = new Scalar(150, 255, 120); //rgb(30, 119, 161)
+        Core.inRange(image, lowerB, upperB, mask);
+        Mat dest = new Mat();
+        Core.bitwise_and(image, image, dest, mask);
+        //Mat mEdgeImage = cannyFilter(dest, seekBarHandler);
+
+        Mat lines = new Mat();
+        Imgproc.HoughLinesP(mask, lines, 1, Math.PI / 180, seekBarHandler.getHoughVotes(), seekBarHandler.getHoughMinlength(), seekBarHandler.getHoughMaxDistance());
+        return lines;
+    }
+
+    public Mat colorMask(Mat image) {
+        Mat mask = new Mat();
+        Scalar lowerB, upperB;
+        Log.d(TAG, "tipo immagine: " + image.type());
+        lowerB = new Scalar(0, 0, 70); //rgb(34, 86, 107)
+        upperB = new Scalar(150, 255, 120); //rgb(30, 119, 161)
+        Core.inRange(image, lowerB, upperB, mask);
+        Mat dest = new Mat();
+        Core.bitwise_and(image, image, dest, mask);
+        return dest;
+    }
+
+    public List<org.opencv.core.Point> findCourtExtremesFromRigthView(Mat lines) {
+
+        lines = mergeNearParallelLines(lines);
+        List<LineFunction> fzs = matToLineFunction(lines);
+        List<org.opencv.core.Point> corners = new ArrayList<>();
+
+        Log.d(TAG, "number of lines : "  + fzs.size());
+        int idx = -1;
+        double maxDist = Double.MIN_VALUE;
+        for (int i = 0; i < fzs.size(); i++) {
+            Log.d(TAG, "line " + i + " = " + fzs.get(i));
+            double dist1 = hypotenuseSquare(fzs.get(i).xStart, fzs.get(i).yStart);
+            double dist2 = hypotenuseSquare(fzs.get(i).xEnd, fzs.get(i).yEnd);
+            double dist = Math.max(dist1, dist2);
+            if (dist > maxDist) {
+                idx = i;
+                maxDist = dist;
+            }
+        }
+        Log.d(TAG, String.valueOf(idx));
+        List<org.opencv.core.Point> intersections = new ArrayList<>();
+        maxDist = Double.MIN_VALUE;
+        int maxInterscetionIdx = -1;
+        int maxInterscetionLineIdx = -1;
+        for (int i = 0; i < fzs.size(); i++) {
+            if (i != idx){
+                LineFunction f1 = fzs.get(idx);
+                LineFunction f2 = fzs.get(i);
+                org.opencv.core.Point intersection = f1.intersection(f2);
+                if (intersection != null){
+                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                        intersections.add(intersection);
+                        Log.d(TAG, "Intersezione in " + intersection);
+                        double dist = hypotenuseSquare(intersection.x, intersection.y);
+                        if (dist > maxDist){
+                            maxInterscetionLineIdx = i;
+                            maxInterscetionIdx = intersections.size() - 1;
+                            maxDist = dist;
+                        }
+                    }
+                }
+            }
+        }
+        org.opencv.core.Point maxIntersection = intersections.get(maxInterscetionIdx);
+        Log.d(TAG, "maxIntersection: " + maxIntersection);
+        corners.add(maxIntersection);
+        return intersections;
+    }
+
+    private double hypotenuseSquare(double c1, double c2) {
+        return c1 * c1 + c2 * c2;
     }
 }
