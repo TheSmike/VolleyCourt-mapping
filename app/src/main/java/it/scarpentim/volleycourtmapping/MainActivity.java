@@ -48,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPerspectiveApplied = false;
 
     Classifier classifier;
+    private List<Point> automaticCorners = null;
 
 
     private enum ShowType{
@@ -208,34 +209,55 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    public void findCorners(View view) {
+        if (sampledImage == null) {
+            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Mat maskedMat = imageSupport.colorMask(sampledImage);
+        Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
+        List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+
+        Mat drawedMat =  sampledImage.clone();
+        for (Point corner : corners) {
+            Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
+        }
+        showImage(drawedMat);
+
+        automaticCorners = corners;
+
+        //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
+        //showImage(correctedImage);
+    }
+
     public void transformImage(View view) {
         if (isPerspectiveApplied) {
             isPerspectiveApplied = false;
-            onTouchListener.reset();
-            onTouchListener.setImage(sampledImage);
+            ((TextView)view).setText(R.string.transform);
             showImage(sampledImage);
+
         } else {
-            if (sampledImage == null) {
-                Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
-                return;
+
+            if (automaticCorners == null){
+                toast("Il processo per individuare i 4 vertici non è stato eseguito, premere il bottone Corners");
+            } else if (automaticCorners.size() != 4) {
+                toast("Il processo non è riuscito ad individuare i 4 vertici in modo univoco!");
+            } else {
+                isPerspectiveApplied = true;
+                ((TextView)view).setText(R.string.goback);
+
+                Mat correctedImage = imageSupport.projectOnHalfCourt(automaticCorners, sampledImage);
+                showImage(correctedImage);
             }
+        }
+    }
 
-            isPerspectiveApplied = true;
-
-            Mat maskedMat = imageSupport.colorMask(sampledImage);
-            Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
-            List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
-
-            Mat drawedMat =  sampledImage.clone();
-            for (Point corner : corners) {
-                Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
-            }
-            showImage(drawedMat);
-
-            //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
-            //showImage(correctedImage);
-
-            }
+    private void toast(String msg) {
+        Context context = getApplicationContext();
+        int duration = Toast.LENGTH_LONG;
+        Toast toast = Toast.makeText(context, msg, duration);
+        toast.show();
     }
 
     public void manualTransformImage(View view) {
@@ -246,15 +268,11 @@ public class MainActivity extends AppCompatActivity {
             showImage(sampledImage);
         } else {
             if (sampledImage == null) {
-                Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+                toast("Nessuna immagine caricata");
                 return;
             }
             if (onTouchListener.getCorners().size() != 4) {
-                Context context = getApplicationContext();
-                CharSequence text = "Bisogna selezionare 4 vertici!";
-                int duration = Toast.LENGTH_LONG;
-                Toast toast = Toast.makeText(context, text, duration);
-                toast.show();
+                toast("Bisogna selezionare 4 vertici!");
             } else {
                 isPerspectiveApplied = true;
 

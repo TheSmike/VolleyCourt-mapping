@@ -113,26 +113,38 @@
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes" />
 
     <Button
-        android:id="@+id/btn_Transform"
+        android:id="@+id/btn_corners"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:onClick="findCorners"
+        android:text="Corners"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
+        app:layout_constraintEnd_toStartOf="@+id/btn_transform" />
+
+    <Button
+        android:id="@+id/btn_transform"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
         android:layout_marginBottom="8dp"
         android:onClick="transformImage"
-        android:text="Transform"
+        android:text="@string/transform"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.24"
         app:layout_constraintStart_toStartOf="parent" />
 
     <Button
         android:id="@+id/btn_classify"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="56dp"
+        android:layout_marginStart="8dp"
         android:layout_marginBottom="8dp"
-        android:text="Classify"
         android:onClick="classifyImage"
+        android:text="Classify"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
-        app:layout_constraintStart_toEndOf="@+id/btn_Transform" />
+        app:layout_constraintStart_toEndOf="@+id/btn_transform" />
+
 
 </android.support.constraint.ConstraintLayout>

@@ -33,9 +33,12 @@ public class ImageSupport {
 
     private static final String TAG = "volleyCourt";
 
-    private static final double MARGIN = 0.01745 * 10;
+    private static final double SLOPE_MARGIN = 0.01745 * 1;
     private static final double MAX_DISTANCE = 5;
     public static final int YOLO_SIZE = 416;
+    private static final double POINT_MARGIN = 2;
+    private static final double SQUARE_POINT_MARGIN = POINT_MARGIN * POINT_MARGIN;
+
     private MainActivity activity;
 
     private static final Scalar WHITE = new Scalar(255,255,255);
@@ -164,7 +167,13 @@ public class ImageSupport {
                     yEnd = line[3];
             org.opencv.core.Point lineStart = new org.opencv.core.Point(xStart, yStart);
             org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
-            Imgproc.line(resultMat, lineStart, lineEnd, new Scalar(255, 0, 0), 2);
+            int r = (255 + i * 10) % 256;
+            int g = (0 + i * 20) % 256;
+            int b = (0 + i * 70) % 256;
+            if (r+g+b < 300)
+                g = 250;
+            Scalar color = new Scalar(r, g, b);
+            Imgproc.line(resultMat, lineStart, lineEnd, color, 3);
         }
         return resultMat;
     }
@@ -223,7 +232,7 @@ public class ImageSupport {
 //            int classifier = 0;
 //            for (int j = 0; j < fzs.size(); j++) {
 //                if (i != j){
-//                    if (m > fzs.get(j).m - MARGIN && m < fzs.get(j).m + MARGIN)
+//                    if (m > fzs.get(j).m - SLOPE_MARGIN && m < fzs.get(j).m + SLOPE_MARGIN)
 //                    {
 //                        Log.d(TAG, "linee parallele, equazioni:");
 //
@@ -316,7 +325,7 @@ public class ImageSupport {
     private boolean similarSlopeLines(LineFunction f1, LineFunction f2) {
         double atanF1 = Math.atan(f1.m);
         double atanF2 = Math.atan(f2.m);
-        return atanF1 > atanF2 - MARGIN && atanF1 < atanF2 + MARGIN;
+        return atanF1 > atanF2 - SLOPE_MARGIN && atanF1 < atanF2 + SLOPE_MARGIN;
     }
 
     public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes, double confidenceThreshold) {
@@ -362,12 +371,109 @@ public class ImageSupport {
     public Mat projectOnHalfCourt(List<org.opencv.core.Point> corners, Mat sampledImage) {
 
         int maxSize = Math.min(screenHeight, screenWidth);
+
+        corners = reorderCorner(corners);
+
         Mat projectiveMat = courtProjectiveMat(corners, maxSize);
         Mat correctedImage = new Mat(maxSize, maxSize, 1);
 
         Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
 
         return correctedImage;
+    }
+
+    private List<org.opencv.core.Point> reorderCorner(List<org.opencv.core.Point> corners) {
+        List<org.opencv.core.Point> newCorners = new ArrayList<>();
+
+        Point rightBottom = new Point(screenWidth -1, screenHeight -1);
+        double min = Double.MAX_VALUE;
+        int idxBottomRight = -1;
+        for (int i = 0; i < corners.size(); i++) {
+            double d = squarePointsDistance(corners.get(i), rightBottom);
+            if (d < min){
+                min = d;
+                idxBottomRight = i;
+            }
+        }
+        org.opencv.core.Point first = corners.get(idxBottomRight);
+        newCorners.add(first);
+
+        double bestRight = Double.MIN_VALUE;
+        int idxBestRight = -1;
+        for (int i = 0; i < corners.size(); i++) {
+            if (i != idxBottomRight){
+                double x = corners.get(i).x;
+                if (x > bestRight){
+                    bestRight = x;
+                    idxBestRight = i;
+                }
+            }
+        }
+        org.opencv.core.Point second = corners.get(idxBestRight);
+        newCorners.add(second);
+
+        double bestTop = Double.MAX_VALUE;
+        int idxBestTop = -1;
+        for (int i = 0; i < corners.size(); i++) {
+            if (i != idxBottomRight && i != idxBestRight){
+                double y = corners.get(i).y;
+                if (y < bestTop){
+                    bestTop = y;
+                    idxBestTop = i;
+                }
+            }
+        }
+        org.opencv.core.Point third = corners.get(idxBestTop);
+        newCorners.add(third);
+
+        int idxBestLeftBottom = -1;
+        for (int i = 0; i < corners.size(); i++) {
+            if (i != idxBottomRight && i != idxBestRight && i != idxBestTop){
+                idxBestLeftBottom = i;
+                break;
+            }
+        }
+        org.opencv.core.Point fourth = corners.get(idxBestLeftBottom);
+        newCorners.add(fourth);
+
+        return newCorners;
+
+
+
+
+//        for (int i = 0; i < corners.size(); i++) {
+//
+//        }
+
+
+//        List<Point> screenCorners = new ArrayList<>();
+//        Point rightBottom = new Point(screenWidth -1, screenHeight -1);
+//        Point rightTop = new Point(screenWidth -1, 0);
+//        Point leftTop = new Point(0, 0);
+//        Point leftBottom = new Point(0, screenHeight -1);
+//        screenCorners.add(rightBottom);
+//        screenCorners.add(rightTop);
+//        screenCorners.add(leftTop);
+//        screenCorners.add(leftBottom);
+//
+//        for (Point screenCorner : screenCorners) {
+//            double min = Double.MAX_VALUE;
+//            int idxBottomRight = -1;
+//            for (int i = 0; i < corners.size(); i++) {
+//                double d = squarePointsDistance(corners.get(i), screenCorner);
+//                if (d < min){
+//                    min = d;
+//                    idxBottomRight = i;
+//                }
+//            }
+//            newCorners.add(corners.get(idxBottomRight));
+//        }
+//        return newCorners;
+
+    }
+
+    private double squarePointsDistance(org.opencv.core.Point p1, Point p2) {
+        return Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
     }
 
     public Mat courtProjectiveMat(List<org.opencv.core.Point> corners, int maxSize) {
@@ -419,7 +525,7 @@ public class ImageSupport {
 
         lines = mergeNearParallelLines(lines);
         List<LineFunction> fzs = matToLineFunction(lines);
-        List<org.opencv.core.Point> corners = new ArrayList<>();
+        final List<org.opencv.core.Point> corners = new ArrayList<>();
 
         Log.d(TAG, "number of lines : "  + fzs.size());
         int idx = -1;
@@ -434,11 +540,13 @@ public class ImageSupport {
                 maxDist = dist;
             }
         }
-        Log.d(TAG, String.valueOf(idx));
+        Log.d(TAG, String.format("line near bottom right corner fz%d = ", idx, fzs.get(idx)));
         List<org.opencv.core.Point> intersections = new ArrayList<>();
         maxDist = Double.MIN_VALUE;
         int maxInterscetionIdx = -1;
         int maxInterscetionLineIdx = -1;
+
+        List<LineFunction> newLines = new ArrayList<>();
         for (int i = 0; i < fzs.size(); i++) {
             if (i != idx){
                 LineFunction f1 = fzs.get(idx);
@@ -447,6 +555,7 @@ public class ImageSupport {
                 if (intersection != null){
                     if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
                         intersections.add(intersection);
+                        newLines.add(f2);
                         Log.d(TAG, "Intersezione in " + intersection);
                         double dist = hypotenuseSquare(intersection.x, intersection.y);
                         if (dist > maxDist){
@@ -458,10 +567,51 @@ public class ImageSupport {
                 }
             }
         }
+
+        for (int j = 0; j < newLines.size(); j++) {
+            for (int i = 0; i < fzs.size(); i++) {
+
+                    LineFunction f1 = newLines.get(j);
+                    LineFunction f2 = fzs.get(i);
+                    if (f1.equals(f2))
+                        continue;
+
+                    org.opencv.core.Point intersection = f1.intersection(f2);
+                    if (intersection != null){
+                        if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                            intersections.add(intersection);
+                            Log.d(TAG, "Intersezione in " + intersection);
+                            //double dist = hypotenuseSquare(intersection.x, intersection.y);
+                        }
+                    }
+
+            }
+
+        }
+
+
         org.opencv.core.Point maxIntersection = intersections.get(maxInterscetionIdx);
         Log.d(TAG, "maxIntersection: " + maxIntersection);
         corners.add(maxIntersection);
+
+        ListIterator<org.opencv.core.Point> iterator = intersections.listIterator();
+        while(iterator.hasNext()){
+            org.opencv.core.Point next = iterator.next();
+            for (org.opencv.core.Point point : intersections) {
+                if (point != next) {
+                    if (arePointsNear(next, point)){
+                        iterator.remove();
+                        break;
+                    }
+                }
+            }
+        }
+
         return intersections;
+    }
+
+    private boolean arePointsNear(org.opencv.core.Point p1, org.opencv.core.Point p2) {
+        return Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2) < SQUARE_POINT_MARGIN;
     }
 
     private double hypotenuseSquare(double c1, double c2) {
