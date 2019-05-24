@@ -36,7 +36,7 @@ public class ImageSupport {
     private static final double SLOPE_MARGIN = 0.01745 * 1;
     private static final double MAX_DISTANCE = 5;
     public static final int YOLO_SIZE = 416;
-    private static final double POINT_MARGIN = 2;
+    private static final double POINT_MARGIN = 5;
     private static final double SQUARE_POINT_MARGIN = POINT_MARGIN * POINT_MARGIN;
 
     private MainActivity activity;
@@ -376,7 +376,6 @@ public class ImageSupport {
 
         Mat projectiveMat = courtProjectiveMat(corners, maxSize);
         Mat correctedImage = new Mat(maxSize, maxSize, 1);
-
         Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
 
         return correctedImage;
@@ -478,14 +477,16 @@ public class ImageSupport {
 
     public Mat courtProjectiveMat(List<org.opencv.core.Point> corners, int maxSize) {
 
+        double size = (float) maxSize * (3.0 / 9.0);
+
         Mat srcPoints = Converters.vector_Point2f_to_Mat(corners);
         Mat destPoints = Converters.vector_Point2f_to_Mat(
                 Arrays.asList(
                         new org.opencv.core.Point[]{
-                                new org.opencv.core.Point(maxSize, maxSize),
                                 new org.opencv.core.Point(0, maxSize),
-                                new org.opencv.core.Point(0, 0),
-                                new org.opencv.core.Point(maxSize, 0)
+                                new org.opencv.core.Point(maxSize, maxSize),
+                                new org.opencv.core.Point(maxSize, size),
+                                new org.opencv.core.Point(0, size),
                         }
                 )
         );
