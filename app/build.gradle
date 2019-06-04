@@ -29,4 +29,5 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-android:1.13.1'
     implementation 'org.apache.commons:commons-lang3:3.0'
     implementation project(':openCVLibrary310')
+    implementation 'com.github.skydoves:colorpickerpreference:1.0.2'
 }

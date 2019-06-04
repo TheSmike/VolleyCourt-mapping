@@ -26,6 +26,9 @@ import java.util.ListIterator;
 import java.util.Map;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
+import it.scarpentim.volleycourtmapping.geometry.GeoUtils;
+import it.scarpentim.volleycourtmapping.geometry.LineFunction;
+import it.scarpentim.volleycourtmapping.geometry.LineIntersection;
 
 import static org.opencv.core.Core.FILLED;
 
@@ -33,11 +36,13 @@ public class ImageSupport {
 
     private static final String TAG = "volleyCourt";
 
-    private static final double SLOPE_MARGIN = 0.01745 * 1;
-    private static final double MAX_DISTANCE = 5;
+    private static final double SLOPE_MARGIN = 0.01745 * 2;
+    private static final double MAX_DISTANCE = 7;
     public static final int YOLO_SIZE = 416;
     private static final double POINT_MARGIN = 5;
     private static final double SQUARE_POINT_MARGIN = POINT_MARGIN * POINT_MARGIN;
+    private static final double ROUND = 1;
+    private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287,124);
 
     private MainActivity activity;
 
@@ -134,7 +139,7 @@ public class ImageSupport {
 
 
     public Mat houghTransform(Mat image, VolleySeekBarHandler sbh) {
-        Mat mEdgeImage = cannyFilter(image, sbh);
+        Mat mEdgeImage = edgeDetector(image, sbh);
 
         Mat lines = new Mat();
         Imgproc.HoughLinesP(mEdgeImage, lines, 1, Math.PI / 180, sbh.getHoughVotes(), sbh.getHoughMinlength(), sbh.getHoughMaxDistance());
@@ -145,7 +150,30 @@ public class ImageSupport {
         return lines;
     }
 
-    public Mat cannyFilter(Mat image, VolleySeekBarHandler sbh) {
+    public Mat edgeDetector(Mat image, VolleySeekBarHandler sbh) {
+//        return sobelDetector(image);
+        return cannyDetector(image, sbh);
+    }
+
+    private Mat sobelDetector(Mat image) {
+        Mat blurredImage=new Mat();
+        Size size=new Size(7,7);
+        Imgproc.GaussianBlur(image, blurredImage, size, 0,0);
+        Mat gray = new Mat();
+        Imgproc.cvtColor(blurredImage, gray, Imgproc.COLOR_RGB2GRAY);
+        Mat xFirstDervative =new Mat(),yFirstDervative =new Mat();
+        int ddepth= CvType.CV_16S;
+        Imgproc.Sobel(gray, xFirstDervative,ddepth , 1,0);
+        Imgproc.Sobel(gray, yFirstDervative,ddepth , 0,1);
+        Mat absXD=new Mat(),absYD=new Mat();
+        Core.convertScaleAbs(xFirstDervative, absXD);
+        Core.convertScaleAbs(yFirstDervative, absYD);
+        Mat edgeImage=new Mat();
+        Core.addWeighted(absXD, 0.5, absYD, 0.5, 0, edgeImage);
+        return edgeImage;
+    }
+
+    private Mat cannyDetector(Mat image, VolleySeekBarHandler sbh) {
         Mat mGray = new Mat(image.height(),image.width(), CvType.CV_8UC1);
         Mat mEdgeImage = new Mat(image.height(),image.width(), CvType.CV_8UC1);
         Imgproc.cvtColor(image, mGray, Imgproc.COLOR_RGB2GRAY);
@@ -156,8 +184,13 @@ public class ImageSupport {
     public Mat drawHoughLines(Mat sampledImage, Mat lines) {
         Mat resultMat = sampledImage.clone();
 
-        Mat newLines = mergeNearParallelLines(lines);
+//        Mat onewLines = mergeNearParallelLines(lines);
+//        Mat newLines = mergeNearParallelLines(onewLines);
+
 //        Mat newLines = lines;
+
+        Mat newLines = mergeNearParallelLines(lines);
+
 
         for (int i = 0; i < newLines.rows(); i++) {
             double[] line = newLines.get(i, 0);
@@ -167,20 +200,33 @@ public class ImageSupport {
                     yEnd = line[3];
             org.opencv.core.Point lineStart = new org.opencv.core.Point(xStart, yStart);
             org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
-            int r = (255 + i * 10) % 256;
-            int g = (0 + i * 20) % 256;
-            int b = (0 + i * 70) % 256;
-            if (r+g+b < 300)
-                g = 250;
-            Scalar color = new Scalar(r, g, b);
-            Imgproc.line(resultMat, lineStart, lineEnd, color, 3);
-        }
+//            if (fzs.get(i).m > (0.30 - 0.05) && fzs.get(i).m < (0.30 + 0.05)) {
+
+                int r = (255 + i * 10) % 256;
+                int g = (0 + i * 20) % 256;
+                int b = (0 + i * 70) % 256;
+                if (r + g + b < 300)
+                    g = 250;
+                Scalar color = new Scalar(r, g, b);
+                Imgproc.line(resultMat, lineStart, lineEnd, color, 3);
+            }
+//        }
         return resultMat;
     }
 
     private Mat mergeNearParallelLines(Mat lines) {
 
         List<LineFunction> fzs = matToLineFunction(lines);
+
+        //tmp
+//        List<LineFunction> newFzs = new ArrayList<>();
+//        for (int i = 0; i < fzs.size(); i++) {
+//            if (fzs.get(i).m > (-9.84 - 1.05) && fzs.get(i).m < (-9.84 + 1.05)) {
+//                newFzs.add(fzs.get(i));
+//            }
+//        }
+//        fzs = newFzs;
+        //end tmp
 
         ListIterator<LineFunction> iterator1 = fzs.listIterator();
         while(iterator1.hasNext()){
@@ -272,41 +318,127 @@ public class ImageSupport {
     }
 
     private void setUnionLine(LineFunction f1, LineFunction f2) {
-        double xSx, ySx;
-        if (f1.xStart < f1.xEnd && f1.xStart < f2.xStart && f1.xStart < f2.xEnd){
-            xSx = f1.xStart;
-            ySx = f1.yStart;
-        }else if (f1.xEnd < f2.xStart && f1.xEnd < f2.xEnd){
-            xSx = f1.xEnd;
-            ySx = f1.yEnd;
-        }else if (f2.xStart < f2.xEnd){
-            xSx = f2.xStart;
-            ySx = f2.yStart;
-        }else{
-            xSx = f2.xEnd;
-            ySx = f2.yEnd;
+        if(f1.topTo(MID_POINT)) {
+            LineFunction topSegment = topSegment(f1, f2);
+            double ySx = topSegment.computeY(xMin(f1, f2));
+            double yDx = topSegment.computeY(xMax(f1, f2));
+            double xSx = topSegment.computeX(ySx);
+            double xDx = topSegment.computeX(yDx);
+            f1.reload(xSx, ySx, xDx, yDx);
+        }else if(f1.leftTo(MID_POINT)) {
+            LineFunction leftSegment = leftSegment(f1, f2);
+            double xTop = leftSegment.computeX(yMin(f1, f2));
+            double xBottom = leftSegment.computeX(yMax(f1, f2));
+            double yTop = leftSegment.computeY(xTop);
+            double yBottom = leftSegment.computeY(xBottom);
+            f1.reload(xTop, yTop, xBottom, yBottom);
+        }else if(f1.bottomTo(MID_POINT)) {
+            LineFunction bottomSegment = bottomSegment(f1, f2);
+            double ySx = bottomSegment.computeY(xMin(f1, f2));
+            double yDx = bottomSegment.computeY(xMax(f1, f2));
+            double xSx = bottomSegment.computeX(ySx);
+            double xDx = bottomSegment.computeX(yDx);
+            f1.reload(xSx, ySx, xDx, yDx);
+        }else if(f1.rightTo(MID_POINT)) {
+            LineFunction rightSegment = rightSegment(f1, f2);
+            double xTop = rightSegment.computeX(yMin(f1, f2));
+            double xBottom = rightSegment.computeX(yMax(f1, f2));
+            double yTop = rightSegment.computeY(xTop);
+            double yBottom = rightSegment.computeY(xBottom);
+            f1.reload(xTop, yTop, xBottom, yBottom);
         }
-        double xDx, yDx;
-        if (f1.xStart > f1.xEnd && f1.xStart > f2.xStart && f1.xStart > f2.xEnd){
-            xDx = f1.xStart;
-            yDx = f1.yStart;
-        }else if (f1.xEnd > f2.xStart && f1.xEnd > f2.xEnd){
-            xDx = f1.xEnd;
-            yDx = f1.yEnd;
-        }else if (f2.xStart > f2.xEnd){
-            xDx = f2.xStart;
-            yDx = f2.yStart;
-        }else{
-            xDx = f2.xEnd;
-            yDx = f2.yEnd;
-        }
+//        leftTopPoint(f1,f2);
+//        leftBottomPoint(f1,f2);
 
-        f1.xStart = xSx;
-        f1.yStart = ySx;
-        f1.xEnd = xDx;
-        f1.yEnd = yDx;
+
+
+//        double xSx, ySx;
+//        if (f1.xStart < f1.xEnd && f1.xStart < f2.xStart && f1.xStart < f2.xEnd){
+//            xSx = f1.xStart;
+//            ySx = f1.yStart;
+//        }else if (f1.xEnd < f2.xStart && f1.xEnd < f2.xEnd){
+//            xSx = f1.xEnd;
+//            ySx = f1.yEnd;
+//        }else if (f2.xStart < f2.xEnd){
+//            xSx = f2.xStart;
+//            ySx = f2.yStart;
+//        }else{
+//            xSx = f2.xEnd;
+//            ySx = f2.yEnd;
+//        }
+//        double xDx, yDx;
+//        if (f1.xStart > f1.xEnd && f1.xStart > f2.xStart && f1.xStart > f2.xEnd){
+//            xDx = f1.xStart;
+//            yDx = f1.yStart;
+//        }else if (f1.xEnd > f2.xStart && f1.xEnd > f2.xEnd){
+//            xDx = f1.xEnd;
+//            yDx = f1.yEnd;
+//        }else if (f2.xStart > f2.xEnd){
+//            xDx = f2.xStart;
+//            yDx = f2.yStart;
+//        }else{
+//            xDx = f2.xEnd;
+//            yDx = f2.yEnd;
+//        }
+//
+//        f1.reload(xSx, ySx, xDx, yDx);
+//        f1.xStart = xSx;
+//        f1.yStart = ySx;
+//        f1.xEnd = xDx;
+//        f1.yEnd = yDx;
 
     }
+
+
+    private LineFunction leftSegment(LineFunction f1, LineFunction f2) {
+        if ((f1.xStart + f1.xEnd) < (f2.xStart + f2.xEnd))
+            return f1;
+        else
+            return f2;
+    }
+    private LineFunction rightSegment(LineFunction f1, LineFunction f2) {
+        if ((f1.xStart + f1.xEnd) > (f2.xStart + f2.xEnd))
+            return f1;
+        else
+            return f2;
+    }
+
+    private double xMax(LineFunction f1, LineFunction f2) {
+        return max(f1.xStart, f1.xEnd, f2.xStart, f2.xEnd);
+    }
+
+    private double max(double d1, double d2, double d3, double d4) {
+        return Math.max(Math.max(d1,d2), Math.max(d3,d4));
+    }
+
+    private double xMin(LineFunction f1, LineFunction f2) {
+        return min(f1.xStart, f1.xEnd, f2.xStart, f2.xEnd);
+    }
+
+    private double min(double d1, double d2, double d3, double d4) {
+        return Math.min(Math.min(d1,d2), Math.min(d3,d4));
+    }
+
+    private double yMin(LineFunction f1, LineFunction f2) {
+        return min(f1.yStart, f1.yEnd, f2.yStart, f2.yEnd);
+    }
+    private double yMax(LineFunction f1, LineFunction f2) {
+        return max(f1.yStart, f1.yEnd, f2.yStart, f2.yEnd);
+    }
+
+    private LineFunction topSegment(LineFunction f1, LineFunction f2) {
+        if ((f1.yStart + f1.yEnd) < (f2.yStart + f2.yEnd))
+            return f1;
+        else
+            return f2;
+    }
+    private LineFunction bottomSegment(LineFunction f1, LineFunction f2) {
+        if ((f1.yStart + f1.yEnd) > (f2.yStart + f2.yEnd))
+            return f1;
+        else
+            return f2;
+    }
+
 
     /**
      * Verifica se due rette sono vicine l'una all'altra
@@ -384,11 +516,11 @@ public class ImageSupport {
     private List<org.opencv.core.Point> reorderCorner(List<org.opencv.core.Point> corners) {
         List<org.opencv.core.Point> newCorners = new ArrayList<>();
 
-        Point rightBottom = new Point(screenWidth -1, screenHeight -1);
+        org.opencv.core.Point rightBottom = new org.opencv.core.Point(screenWidth -1, screenHeight -1);
         double min = Double.MAX_VALUE;
         int idxBottomRight = -1;
         for (int i = 0; i < corners.size(); i++) {
-            double d = squarePointsDistance(corners.get(i), rightBottom);
+            double d = GeoUtils.squarePointsDistance(corners.get(i), rightBottom);
             if (d < min){
                 min = d;
                 idxBottomRight = i;
@@ -471,10 +603,6 @@ public class ImageSupport {
 
     }
 
-    private double squarePointsDistance(org.opencv.core.Point p1, Point p2) {
-        return Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
-    }
-
     public Mat courtProjectiveMat(List<org.opencv.core.Point> corners, int maxSize) {
 
         double size = (float) maxSize * (3.0 / 9.0);
@@ -503,7 +631,7 @@ public class ImageSupport {
         Core.inRange(image, lowerB, upperB, mask);
         Mat dest = new Mat();
         Core.bitwise_and(image, image, dest, mask);
-        //Mat mEdgeImage = cannyFilter(dest, seekBarHandler);
+        //Mat mEdgeImage = edgeDetector(dest, seekBarHandler);
 
         Mat lines = new Mat();
         Imgproc.HoughLinesP(mask, lines, 1, Math.PI / 180, seekBarHandler.getHoughVotes(), seekBarHandler.getHoughMinlength(), seekBarHandler.getHoughMaxDistance());
@@ -512,23 +640,247 @@ public class ImageSupport {
 
     public Mat colorMask(Mat image) {
         Mat mask = new Mat();
+        Mat dest = new Mat();
+
         Scalar lowerB, upperB;
         Log.d(TAG, "tipo immagine: " + image.type());
-        lowerB = new Scalar(0, 0, 70); //rgb(34, 86, 107)
-        upperB = new Scalar(150, 255, 120); //rgb(30, 119, 161)
+//        lowerB = new Scalar(50, 50, 70); //rgb(34, 86, 107)
+//        upperB = new Scalar(165, 210, 130); //rgb(30, 119, 161)
+
+        lowerB = new Scalar(28, 100, 62);
+        upperB = new Scalar(153, 128, 161);
+
+//        lowerB = new Scalar(28, 100, 34);
+//        upperB = new Scalar(164, 128, 161);
+
         Core.inRange(image, lowerB, upperB, mask);
-        Mat dest = new Mat();
-        Core.bitwise_and(image, image, dest, mask);
+        Core.bitwise_or(image, image, dest, mask);
+
+//        Mat result = blurImage(dest);
+
         return dest;
+    }
+
+    private Mat blurImage(Mat image) {
+
+        Mat blurredImage = new Mat();
+        Size size = new Size(7, 7);
+
+        //action_average
+//
+        Imgproc.blur(image, blurredImage, size);
+        return blurredImage;
+
+        //action_gaussian
+//        Imgproc.GaussianBlur(image, blurredImage, size, 0, 0);
+//        return blurredImage;
+        // median
+
+//        int kernelDim = 7;
+//        Imgproc.medianBlur(image, blurredImage, kernelDim);
+//        return blurredImage;
+    }
+
+    private Scalar majorLimit(Scalar color) {
+        return new Scalar(color.val[0]+ROUND,color.val[1]+ROUND,color.val[2]+ROUND);
+    }
+
+    private Scalar minorLimit(Scalar color) {
+        return new Scalar(color.val[0]-ROUND,color.val[1]-ROUND,color.val[2]-ROUND);
     }
 
     public List<org.opencv.core.Point> findCourtExtremesFromRigthView(Mat lines) {
 
         lines = mergeNearParallelLines(lines);
         List<LineFunction> fzs = matToLineFunction(lines);
-        final List<org.opencv.core.Point> corners = new ArrayList<>();
 
         Log.d(TAG, "number of lines : "  + fzs.size());
+
+        LineFunction topBottomRightLine = getTopBottomRightLine(fzs);
+
+        List<org.opencv.core.Point> intersections = new ArrayList<>();
+
+
+
+        LineIntersection[] bottomLinesIntersection = getBottomRightLineIntersections(fzs, topBottomRightLine, topBottomRightLine.getExtremePointFarFromOrigin());
+        for (int i = 0; i < bottomLinesIntersection.length; i++) {
+            intersections.add(bottomLinesIntersection[i].getIntersection());
+        }
+
+
+
+//        List<org.opencv.core.Point> intersections = new ArrayList<>();
+//        double maxDist = Double.MIN_VALUE;
+//        int maxInterscetionIdx = -1;
+//        int maxInterscetionLineIdx = -1;
+//
+//        List<LineFunction> newLines = new ArrayList<>();
+//        for (int i = 0; i < fzs.size(); i++) {
+//            LineFunction f1 = topBottomRightLine;
+//            LineFunction f2 = fzs.get(i);
+//            if (f1 != f2){
+//                org.opencv.core.Point intersection = f1.intersection(f2);
+//                if (intersection != null){
+//                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+//                        intersections.add(intersection);
+//                        newLines.add(f2);
+//                        Log.d(TAG, "Intersezione in " + intersection);
+//                        double dist = hypotenuseSquare(intersection.x, intersection.y);
+//                        if (dist > maxDist){
+//                            maxInterscetionLineIdx = i;
+//                            maxInterscetionIdx = intersections.size() - 1;
+//                            maxDist = dist;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        for (int j = 0; j < newLines.size(); j++) {
+//            for (int i = 0; i < fzs.size(); i++) {
+//
+//                    LineFunction f1 = newLines.get(j);
+//                    LineFunction f2 = fzs.get(i);
+//                    if (f1.equals(f2))
+//                        continue;
+//
+//                    org.opencv.core.Point intersection = f1.intersection(f2);
+//                    if (intersection != null){
+//                        if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+//                            intersections.add(intersection);
+//                            Log.d(TAG, "Intersezione in " + intersection);
+//                            //double dist = hypotenuseSquare(intersection.x, intersection.y);
+//                        }
+//                    }
+//
+//            }
+//
+//        }
+//
+//
+//        org.opencv.core.Point maxIntersection = intersections.get(maxInterscetionIdx);
+//        Log.d(TAG, "maxIntersection: " + maxIntersection);
+//        corners.add(maxIntersection);
+//
+//        ListIterator<org.opencv.core.Point> iterator = intersections.listIterator();
+//        while(iterator.hasNext()){
+//            org.opencv.core.Point next = iterator.next();
+//            for (org.opencv.core.Point point : intersections) {
+//                if (point != next) {
+//                    if (arePointsNear(next, point)){
+//                        iterator.remove();
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+
+        return intersections;
+    }
+
+    private LineIntersection[] getBottomRightLineIntersections(List<LineFunction> fzs, LineFunction f1, org.opencv.core.Point endPoint) {
+
+        double minDistance = Double.MAX_VALUE;
+        int minIntersectionLineIdx = -1;
+        org.opencv.core.Point minIntersection = null;
+
+        double secondMinDistance = Double.MAX_VALUE;
+        int secondMinIntersectionLineIdx = -1;
+        org.opencv.core.Point secondMinIntersection = null;
+
+
+        for (int i = 0; i < fzs.size(); i++) {
+            LineFunction f2 = fzs.get(i);
+            if (f1 != f2) {
+                org.opencv.core.Point intersection = f1.intersection(f2);
+                if (intersection != null){
+                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                        double dist = distanceSquare(intersection, endPoint);
+                        if (dist < minDistance){
+                            secondMinDistance = minDistance;
+                            secondMinIntersectionLineIdx = minIntersectionLineIdx;
+                            secondMinIntersection = minIntersection;
+
+                            minDistance = dist;
+                            minIntersectionLineIdx = i;
+                            minIntersection = intersection;
+
+                        } else if ( dist < secondMinDistance){
+                            secondMinDistance = dist;
+                            secondMinIntersectionLineIdx = i;
+                            secondMinIntersection = intersection;
+                        }
+                    }
+                }
+            }
+        }
+        LineIntersection intersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
+        LineIntersection intersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);
+
+        f1 = intersection1.getLineFunction();
+        endPoint = intersection1.getLineFunction().getExtremePointNearTop();
+        minDistance = Double.MAX_VALUE;
+        minIntersectionLineIdx = -1;
+        minIntersection = null;
+
+        for (int i = 0; i < fzs.size(); i++) {
+            LineFunction f2 = fzs.get(i);
+            if (f1 != f2) {
+                org.opencv.core.Point intersection = f1.intersection(f2);
+                if (intersection != null){
+                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                        double dist = distanceSquare(intersection, endPoint);
+                        if (dist < minDistance){
+                            minDistance = dist;
+                            minIntersectionLineIdx = i;
+                            minIntersection = intersection;
+                        }
+                    }
+                }
+            }
+        }
+        LineIntersection intersection3 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
+
+        f1 = intersection2.getLineFunction();
+        endPoint = intersection2.getLineFunction().getExtremePointNearTop();
+        minDistance = Double.MAX_VALUE;
+        minIntersectionLineIdx = -1;
+        minIntersection = null;
+
+        for (int i = 0; i < fzs.size(); i++) {
+            LineFunction f2 = fzs.get(i);
+            if (f1 != f2) {
+                org.opencv.core.Point intersection = f1.intersection(f2);
+                if (intersection != null){
+                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                        double dist = distanceSquare(intersection, endPoint);
+                        if (dist < minDistance){
+                            minDistance = dist;
+                            minIntersectionLineIdx = i;
+                            minIntersection = intersection;
+                        }
+                    }
+                }
+            }
+        }
+        LineIntersection intersection4 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
+
+        if (intersection3.getLineFunction() != intersection4.getLineFunction())
+            throw new RuntimeException("La linea finale non combacia");
+
+        return new LineIntersection[]{
+                intersection1,
+                intersection2,
+                intersection3,
+                intersection4
+        };
+    }
+
+    private double distanceSquare(org.opencv.core.Point p1, org.opencv.core.Point p2) {
+        return Math.pow(p1.y - p2.y, 2) + Math.pow(p1.x - p2.x, 2);
+    }
+
+    private LineFunction getTopBottomRightLine(List<LineFunction> fzs) {
         int idx = -1;
         double maxDist = Double.MIN_VALUE;
         for (int i = 0; i < fzs.size(); i++) {
@@ -541,74 +893,9 @@ public class ImageSupport {
                 maxDist = dist;
             }
         }
-        Log.d(TAG, String.format("line near bottom right corner fz%d = ", idx, fzs.get(idx)));
-        List<org.opencv.core.Point> intersections = new ArrayList<>();
-        maxDist = Double.MIN_VALUE;
-        int maxInterscetionIdx = -1;
-        int maxInterscetionLineIdx = -1;
-
-        List<LineFunction> newLines = new ArrayList<>();
-        for (int i = 0; i < fzs.size(); i++) {
-            if (i != idx){
-                LineFunction f1 = fzs.get(idx);
-                LineFunction f2 = fzs.get(i);
-                org.opencv.core.Point intersection = f1.intersection(f2);
-                if (intersection != null){
-                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
-                        intersections.add(intersection);
-                        newLines.add(f2);
-                        Log.d(TAG, "Intersezione in " + intersection);
-                        double dist = hypotenuseSquare(intersection.x, intersection.y);
-                        if (dist > maxDist){
-                            maxInterscetionLineIdx = i;
-                            maxInterscetionIdx = intersections.size() - 1;
-                            maxDist = dist;
-                        }
-                    }
-                }
-            }
-        }
-
-        for (int j = 0; j < newLines.size(); j++) {
-            for (int i = 0; i < fzs.size(); i++) {
-
-                    LineFunction f1 = newLines.get(j);
-                    LineFunction f2 = fzs.get(i);
-                    if (f1.equals(f2))
-                        continue;
-
-                    org.opencv.core.Point intersection = f1.intersection(f2);
-                    if (intersection != null){
-                        if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
-                            intersections.add(intersection);
-                            Log.d(TAG, "Intersezione in " + intersection);
-                            //double dist = hypotenuseSquare(intersection.x, intersection.y);
-                        }
-                    }
-
-            }
-
-        }
-
-
-        org.opencv.core.Point maxIntersection = intersections.get(maxInterscetionIdx);
-        Log.d(TAG, "maxIntersection: " + maxIntersection);
-        corners.add(maxIntersection);
-
-        ListIterator<org.opencv.core.Point> iterator = intersections.listIterator();
-        while(iterator.hasNext()){
-            org.opencv.core.Point next = iterator.next();
-            for (org.opencv.core.Point point : intersections) {
-                if (point != next) {
-                    if (arePointsNear(next, point)){
-                        iterator.remove();
-                        break;
-                    }
-                }
-            }
-        }
-
-        return intersections;
+        LineFunction bestBottomRightLine = fzs.get(idx);
+        Log.d(TAG, String.format("line near bottom right corner fz%d = ", idx, bestBottomRightLine));
+        return bestBottomRightLine;
     }
 
     private boolean arePointsNear(org.opencv.core.Point p1, org.opencv.core.Point p2) {
@@ -617,5 +904,12 @@ public class ImageSupport {
 
     private double hypotenuseSquare(double c1, double c2) {
         return c1 * c1 + c2 * c2;
+    }
+
+    public Mat toPhoneDim(Mat image) {
+        return image;
+//        Mat sampledImage = new Mat();
+//        Imgproc.resize(image, sampledImage, new Size(), 0.5, 0.5, Imgproc.INTER_AREA);
+//        return sampledImage;
     }
 }

@@ -1,8 +1,8 @@
-package it.scarpentim.volleycourtmapping;
+package it.scarpentim.volleycourtmapping.geometry;
 
 import org.opencv.core.Point;
 
-class LineFunction {
+public class LineFunction {
 
     private static final double EPSILON = 2;
     private static final double MARGIN = 7;
@@ -15,10 +15,6 @@ class LineFunction {
     private Point startPoint;
     private Point endPoint;
 
-
-    public LineFunction(double xStart, double yStart, double xEnd, double yEnd) {
-        init(xStart, yStart, xEnd, yEnd);
-    }
 
     private void init(double xStart, double yStart, double xEnd, double yEnd) {
         this.xStart = xStart;
@@ -43,8 +39,11 @@ class LineFunction {
         init(xStart, yStart, xEnd, yEnd);
     }
 
-    public double compute(double x) {
+    public double computeY(double x) {
         return m*x + b;
+    }
+    public double computeX(double y) {
+        return (y-b)/m;
     }
 
     @Override
@@ -64,7 +63,7 @@ class LineFunction {
     }
 
     public boolean segmentContainPoint(Point point) {
-        double y = compute(point.x);
+        double y = computeY(point.x);
         if (y >= point.y - EPSILON && y <= point.y + EPSILON
                 && point.x >= Math.min(xStart, xEnd) - MARGIN && point.x <= Math.max(xStart, xEnd) + MARGIN)
             return true;
@@ -129,8 +128,84 @@ class LineFunction {
         return endPoint;
     }
 
+    public void reload(double xStart, double yStart, double xEnd, double yEnd) {
+        init(xStart, yStart, xEnd, yEnd);
+    }
+
+    public Point getExtremePointFarFromOrigin() {
+        if (Math.pow(getStartPoint().x, 2) + Math.pow(getStartPoint().y, 2) >  Math.pow(getEndPoint().x, 2) + Math.pow(getEndPoint().y, 2))
+            return getStartPoint();
+        else
+            return getEndPoint();
+    }
+
+    public Point getExtremePointNearTop() {
+        if (getStartPoint().y < getEndPoint().y)
+            return getStartPoint();
+        else
+            return getEndPoint();
+    }
+
+    public boolean leftTo(Point midPoint) {
+        double y = computeY(midPoint.x);
+        double x = computeX(midPoint.y);
+
+        if (x > midPoint.x) {
+            return false;
+        }
+        else {
+            double horizontalDist = GeoUtils.squarePointsDistance(midPoint, new Point(x, midPoint.y));
+            double verticalDist = GeoUtils.squarePointsDistance(midPoint, new Point(midPoint.x, y));
+            return (horizontalDist < verticalDist);
+        }
+    }
+
+    public boolean rightTo(Point midPoint) {
+        double y = computeY(midPoint.x);
+        double x = computeX(midPoint.y);
+
+        if (x < midPoint.x) {
+            return false;
+        }
+        else {
+            double horizontalDist = GeoUtils.squarePointsDistance(midPoint, new Point(x, midPoint.y));
+            double verticalDist = GeoUtils.squarePointsDistance(midPoint, new Point(midPoint.x, y));
+            return (horizontalDist < verticalDist);
+        }
+    }
+
+    public boolean topTo(Point midPoint) {
+        double y = computeY(midPoint.x);
+        double x = computeX(midPoint.y);
+
+        if (y > midPoint.y) {
+            return false;
+        }
+        else {
+            double horizontalDist = GeoUtils.squarePointsDistance(midPoint, new Point(x, midPoint.y));
+            double verticalDist = GeoUtils.squarePointsDistance(midPoint, new Point(midPoint.x, y));
+            return (horizontalDist > verticalDist);
+        }
+    }
+
+    public boolean bottomTo(Point midPoint) {
+        double y = computeY(midPoint.x);
+        double x = computeX(midPoint.y);
+
+        if (y < midPoint.y) {
+            return false;
+        }
+        else {
+            double horizontalDist = GeoUtils.squarePointsDistance(midPoint, new Point(x, midPoint.y));
+            double verticalDist = GeoUtils.squarePointsDistance(midPoint, new Point(midPoint.x, y));
+            return (horizontalDist > verticalDist);
+        }
+    }
+
+
+
 //    private boolean pointInSegment(Point point) {
-//        double y = compute(point.x);
+//        double y = computeY(point.x);
 //
 //        if (y > Math.min(xStart, xEnd) &&
 //    }

@@ -1,6 +1,7 @@
 package it.scarpentim.volleycourtmapping;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -16,6 +17,10 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.skydoves.colorpickerpreference.ColorEnvelope;
+import com.skydoves.colorpickerpreference.ColorListener;
+import com.skydoves.colorpickerpreference.ColorPickerDialog;
+
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
@@ -24,6 +29,7 @@ import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.File;
 import java.util.List;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
@@ -54,7 +60,8 @@ public class MainActivity extends AppCompatActivity {
     private enum ShowType{
         IMAGE,
         CANNY,
-        HOUGH
+        HOUGH,
+        COLOR_TH,
     }
 
     private ShowType show = ShowType.IMAGE;
@@ -70,6 +77,34 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
         classifier = ClassifierFactory.getYolov3Instance(this);
         imageSupport = new ImageSupport(this, classifier.getLabels());
+
+//        createColorPicker();
+    }
+
+    private void createColorPicker() {
+        ColorPickerDialog.Builder builder = new ColorPickerDialog.Builder(this); // (this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
+        builder.setTitle("ColorPicker Dialog");
+        builder.setPreferenceName("MyColorPickerDialog");
+//        builder.setFlagView(new CustomFlag(this, R.layout.layout_flag));
+        builder.setPositiveButton(getString(R.string.confirm), new ColorListener() {
+
+            @Override
+            public void onColorSelected(ColorEnvelope colorEnvelope) {
+                toast("colore: #" + colorEnvelope.getColorHtml());
+//                TextView textView = findViewById(R.id.textView);
+//                textView.setText("#" + colorEnvelope.getColorHtml());
+//
+//                LinearLayout linearLayout = findViewById(R.id.linearLayout);
+//                linearLayout.setBackgroundColor(colorEnvelope.getColor());
+            }
+        });
+        builder.setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.dismiss();
+            }
+        });
+        builder.show();
     }
 
     @Override
@@ -111,6 +146,20 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
 
+            case R.id.action_Color_slicing:
+                if (checkImageLoaded()){
+                    show = ShowType.COLOR_TH;
+                    showImage();
+                    return true;
+                }
+                case R.id.action_resetImage:
+                    if (checkImageLoaded()){
+                        show = ShowType.IMAGE;
+                        showImage();
+                        return true;
+                    }
+
+
         }
         return super.onOptionsItemSelected(item);
 
@@ -135,13 +184,16 @@ public class MainActivity extends AppCompatActivity {
     private void loadImageFromPath() {
         if (selectedImagePath != null) {
             Log.i(TAG, "selectedImagePath: " + selectedImagePath);
-            sampledImage = imageSupport.loadImage(selectedImagePath);
-            isPerspectiveApplied = false;
-            onTouchListener.reset();
-            onTouchListener.setImage(sampledImage);
-            Bitmap bitmap = imageSupport.matToBitmap(sampledImage);
-            ImageView iv = findViewById(R.id.ivPreview);
-            iv.setImageBitmap(bitmap);
+            File file = new File(selectedImagePath);
+            if(file.exists()) {
+                sampledImage = imageSupport.loadImage(selectedImagePath);
+                isPerspectiveApplied = false;
+//                onTouchListener.reset();
+//                onTouchListener.setImage(sampledImage);
+                Bitmap bitmap = imageSupport.matToBitmap(imageSupport.toPhoneDim(sampledImage));
+                ImageView iv = findViewById(R.id.ivPreview);
+                iv.setImageBitmap(bitmap);
+            }
         }
     }
 
@@ -153,9 +205,14 @@ public class MainActivity extends AppCompatActivity {
             case IMAGE:
                 bitmap = imageSupport.matToBitmap(sampledImage);
                 break;
+            case COLOR_TH:
+                Mat maskedSMat = imageSupport.colorMask(sampledImage);
+                bitmap = imageSupport.matToBitmap(maskedSMat);
+                break;
+
             case CANNY:
                 Mat maskedCMat = imageSupport.colorMask(sampledImage);
-                Mat cannyMat = imageSupport.cannyFilter(maskedCMat, seekBarHandler);
+                Mat cannyMat = imageSupport.edgeDetector(maskedCMat, seekBarHandler);
                 bitmap = imageSupport.matToBitmap(cannyMat);
                 break;
             case HOUGH:

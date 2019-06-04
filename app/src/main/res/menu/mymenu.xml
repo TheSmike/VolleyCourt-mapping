@@ -2,22 +2,38 @@
 <menu xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <item android:title="@string/action_OpenGallery"
-        android:id="@+id/action_openGallery"
+
+    <item android:title="@string/action_color_slicing"
+        android:id="@+id/action_Color_slicing"
+        android:titleCondensed="cl.th"
         android:orderInCategory="100"
-        app:showAsAction="never"
+        app:showAsAction="always"
         android:enabled="true" />
 
     <item android:title="@string/action_canny"
         android:id="@+id/action_Canny"
-        android:orderInCategory="100"
-        app:showAsAction="ifRoom"
+        android:orderInCategory="101"
+        app:showAsAction="always"
         android:enabled="true" />
 
     <item android:title="@string/action_hough"
         android:id="@+id/action_Hough"
-        android:orderInCategory="100"
+        android:orderInCategory="102"
+        app:showAsAction="always"
+        android:enabled="true" />
+
+    <item android:title="@string/action_resetImage"
+        android:id="@+id/action_resetImage"
+        android:orderInCategory="200"
         app:showAsAction="ifRoom"
         android:enabled="true" />
+
+    <item android:title="@string/action_OpenGallery"
+        android:id="@+id/action_openGallery"
+        android:orderInCategory="300"
+        app:showAsAction="ifRoom"
+        android:enabled="true" />
+
+
 
 </menu>

@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="120dp"
         android:layout_marginBottom="8dp"
-        android:max="256"
+        android:max="400"
         android:progress="80"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_MinThreshCanny" />
 
@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="120dp"
         android:layout_marginBottom="8dp"
-        android:max="256"
+        android:max="400"
         android:progress="100"
         app:layout_constraintBottom_toBottomOf="parent" />
 
@@ -70,7 +70,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="120dp"
         android:layout_marginBottom="8dp"
-        android:max="250"
+        android:max="350"
         android:progress="125"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_MaxThreshCanny" />
 
@@ -89,7 +89,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="120dp"
         android:layout_marginBottom="8dp"
-        android:max="50"
+        android:max="100"
         android:progress="5"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMinLength" />
 
@@ -108,7 +108,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="120dp"
         android:layout_marginBottom="8dp"
-        android:max="50"
+        android:max="100"
         android:progress="25"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes" />
 
@@ -145,6 +145,20 @@
         android:text="Classify"
         app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
         app:layout_constraintStart_toEndOf="@+id/btn_transform" />
+
+    <!--<com.skydoves.colorpickerpreference.ColorPickerView-->
+        <!--android:id="@+id/colorPickerView"-->
+        <!--android:layout_width="300dp"-->
+        <!--android:layout_height="300dp"-->
+        <!--android:layout_marginStart="8dp"-->
+        <!--android:layout_marginTop="8dp"-->
+        <!--android:layout_marginEnd="8dp"-->
+        <!--app:layout_constraintBottom_toTopOf="@+id/btn_transform"-->
+        <!--app:layout_constraintEnd_toEndOf="parent"-->
+        <!--app:layout_constraintStart_toStartOf="parent"-->
+        <!--app:layout_constraintTop_toBottomOf="@+id/ivPreview"-->
+        <!--app:palette="@drawable/palette"-->
+        <!--app:selector="@drawable/wheel" />-->
 
 
 </android.support.constraint.ConstraintLayout>

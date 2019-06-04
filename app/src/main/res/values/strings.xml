@@ -6,4 +6,8 @@
     <string name="action_hough">Hough</string>
     <string name="transform">Transform</string>
     <string name="goback">Go Back</string>
+    <string name="confirm">conferma</string>
+    <string name="cancel">annulla</string>
+    <string name="action_color_slicing">color Slicing</string>
+    <string name="action_resetImage">clear all</string>
 </resources>
