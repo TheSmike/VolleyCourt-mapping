@@ -6,7 +6,7 @@ public class LineFunction {
 
     private static final double EPSILON = 2;
     private static final double MARGIN = 7;
-    public double m,b;
+    private Double m,b;
     public double xStart;
     public double yStart;
     public double xEnd;
@@ -14,6 +14,8 @@ public class LineFunction {
 
     private Point startPoint;
     private Point endPoint;
+
+
 
 
     private void init(double xStart, double yStart, double xEnd, double yEnd) {
@@ -25,10 +27,13 @@ public class LineFunction {
         startPoint = new Point(xStart, yStart);
         endPoint = new Point(xEnd, yEnd);
 
-//        if ((xEnd - xStart) == 0)
-//            throw new UnsupportedOperationException();
-        m = (yEnd - yStart) / (xEnd - xStart);
-        b = yStart - m * xStart;
+        if ((xEnd - xStart) == 0) {
+            m = Double.POSITIVE_INFINITY;
+            b = xStart;
+        } else {
+            m = (yEnd - yStart) / (xEnd - xStart);
+            b = yStart - m * xStart;
+        }
     }
 
     public LineFunction(double[] line) {
@@ -39,22 +44,46 @@ public class LineFunction {
         init(xStart, yStart, xEnd, yEnd);
     }
 
-    public double computeY(double x) {
-        return m*x + b;
+    public Double computeY(double x) {
+        if (m == Double.POSITIVE_INFINITY)
+            return Double.NaN;
+        else
+            return m*x + b;
     }
-    public double computeX(double y) {
-        return (y-b)/m;
+
+    public Double computeX(double y) {
+        if (m == Double.POSITIVE_INFINITY)
+            return b;
+        else if (m == 0)
+            return Double.NaN;
+        else
+            return (y-b)/m;
     }
 
     @Override
     public String toString() {
-        return String.format("y = %fx+%f", m, b);
+        if(m == Double.POSITIVE_INFINITY)
+            return String.format("x = %f", b);
+        else if (m == 0)
+            return String.format("y = %f", b);
+        else
+            return String.format("y = %fx+%f", m, b);
     }
 
     public Point intersection(LineFunction f2) {
-        if (f2.b - this.b == 0){
+        //se parallele torna null
+        if (this.m == Double.POSITIVE_INFINITY && f2.m == Double.POSITIVE_INFINITY) {
             return null;
+        } else if (f2.m - this.m == 0) {
+            return null;
+        } else if (this.m == Double.POSITIVE_INFINITY){
+            Double y = f2.computeY(this.xStart);
+            return new Point(this.xStart, y);
+        } else if (f2.m == Double.POSITIVE_INFINITY){
+            Double y = this.computeY(f2.xStart);
+            return new Point(f2.xStart, y);
         }
+
         double x = (f2.b - this.b) / (this.m - f2.m);
         double y = m*x + b;
 
@@ -116,10 +145,6 @@ public class LineFunction {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    private double distanceLineToPoint(Point point) {
-        return (point.y - (this.m * point.x + this.b)) / Math.sqrt(1 + this.m * this.m);
-    }
-
     public Point getStartPoint() {
         return startPoint;
     }
@@ -147,6 +172,11 @@ public class LineFunction {
     }
 
     public boolean leftTo(Point midPoint) {
+        if (m == Double.POSITIVE_INFINITY)
+            return xStart < midPoint.x;
+        if (m == 0)
+            return false;
+
         double y = computeY(midPoint.x);
         double x = computeX(midPoint.y);
 
@@ -161,6 +191,11 @@ public class LineFunction {
     }
 
     public boolean rightTo(Point midPoint) {
+        if (m == Double.POSITIVE_INFINITY)
+            return xStart > midPoint.x;
+        if (m == 0)
+            return false;
+
         double y = computeY(midPoint.x);
         double x = computeX(midPoint.y);
 
@@ -175,6 +210,11 @@ public class LineFunction {
     }
 
     public boolean topTo(Point midPoint) {
+        if (m == Double.POSITIVE_INFINITY)
+            return false;
+        if (m == 0)
+            return (computeY(midPoint.x) < midPoint.y);
+
         double y = computeY(midPoint.x);
         double x = computeX(midPoint.y);
 
@@ -189,6 +229,11 @@ public class LineFunction {
     }
 
     public boolean bottomTo(Point midPoint) {
+        if (m == Double.POSITIVE_INFINITY)
+            return false;
+        if (m == 0)
+            return (computeY(midPoint.x) > midPoint.y);
+
         double y = computeY(midPoint.x);
         double x = computeX(midPoint.y);
 
@@ -202,6 +247,9 @@ public class LineFunction {
         }
     }
 
+    public double getSlopeInRadians() {
+        return Math.atan(m);
+    }
 
 
 //    private boolean pointInSegment(Point point) {

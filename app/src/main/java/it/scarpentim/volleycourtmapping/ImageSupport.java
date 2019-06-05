@@ -241,7 +241,7 @@ public class ImageSupport {
 
                 if (similarNearSegment(fz1, fz2)) {
                     Log.d(TAG, "linee parallele e vicine, equazioni:");
-                    Log.d(TAG, String.format("y = %fx+%f", fz2.m, fz2.b));
+                    Log.d(TAG, fz2.toString());
                     setUnionLine(fz2, fz1);
                     iterator1.remove();
                     break;
@@ -324,6 +324,10 @@ public class ImageSupport {
             double yDx = topSegment.computeY(xMax(f1, f2));
             double xSx = topSegment.computeX(ySx);
             double xDx = topSegment.computeX(yDx);
+            if (Double.isNaN(xSx) || Double.isNaN(xDx) ) {
+                xSx = xMin(f1, f2);
+                xDx = xMax(f1, f2);
+            }
             f1.reload(xSx, ySx, xDx, yDx);
         }else if(f1.leftTo(MID_POINT)) {
             LineFunction leftSegment = leftSegment(f1, f2);
@@ -331,6 +335,10 @@ public class ImageSupport {
             double xBottom = leftSegment.computeX(yMax(f1, f2));
             double yTop = leftSegment.computeY(xTop);
             double yBottom = leftSegment.computeY(xBottom);
+            if (Double.isNaN(yTop) || Double.isNaN(yBottom) ) {
+                yTop = yMin(f1, f2);
+                yBottom = yMax(f1, f2);
+            }
             f1.reload(xTop, yTop, xBottom, yBottom);
         }else if(f1.bottomTo(MID_POINT)) {
             LineFunction bottomSegment = bottomSegment(f1, f2);
@@ -338,6 +346,10 @@ public class ImageSupport {
             double yDx = bottomSegment.computeY(xMax(f1, f2));
             double xSx = bottomSegment.computeX(ySx);
             double xDx = bottomSegment.computeX(yDx);
+            if (Double.isNaN(xSx) || Double.isNaN(xDx) ) {
+                xSx = xMin(f1, f2);
+                xDx = xMax(f1, f2);
+            }
             f1.reload(xSx, ySx, xDx, yDx);
         }else if(f1.rightTo(MID_POINT)) {
             LineFunction rightSegment = rightSegment(f1, f2);
@@ -345,6 +357,10 @@ public class ImageSupport {
             double xBottom = rightSegment.computeX(yMax(f1, f2));
             double yTop = rightSegment.computeY(xTop);
             double yBottom = rightSegment.computeY(xBottom);
+            if (Double.isNaN(yTop) || Double.isNaN(yBottom) ) {
+                yTop = yMin(f1, f2);
+                yBottom = yMax(f1, f2);
+            }
             f1.reload(xTop, yTop, xBottom, yBottom);
         }
 //        leftTopPoint(f1,f2);
@@ -455,8 +471,8 @@ public class ImageSupport {
     }
 
     private boolean similarSlopeLines(LineFunction f1, LineFunction f2) {
-        double atanF1 = Math.atan(f1.m);
-        double atanF2 = Math.atan(f2.m);
+        double atanF1 = f1.getSlopeInRadians();
+        double atanF2 = f2.getSlopeInRadians();
         return atanF1 > atanF2 - SLOPE_MARGIN && atanF1 < atanF2 + SLOPE_MARGIN;
     }
 
@@ -894,7 +910,7 @@ public class ImageSupport {
             }
         }
         LineFunction bestBottomRightLine = fzs.get(idx);
-        Log.d(TAG, String.format("line near bottom right corner fz%d = ", idx, bestBottomRightLine));
+        Log.d(TAG, String.format("line near bottom right corner fz%d ==> %s", idx, bestBottomRightLine));
         return bestBottomRightLine;
     }
 
