@@ -34,6 +34,7 @@ import java.util.List;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
+import it.scarpentim.volleycourtmapping.exception.AppException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -54,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPerspectiveApplied = false;
 
     Classifier classifier;
-    private List<Point> automaticCorners = null;
+    private List<Point> corners = null;
 
 
     private enum ShowType{
@@ -188,8 +189,8 @@ public class MainActivity extends AppCompatActivity {
             if(file.exists()) {
                 sampledImage = imageSupport.loadImage(selectedImagePath);
                 isPerspectiveApplied = false;
-//                onTouchListener.reset();
-//                onTouchListener.setImage(sampledImage);
+                onTouchListener.reset();
+                onTouchListener.setImage(sampledImage);
                 Bitmap bitmap = imageSupport.matToBitmap(imageSupport.toPhoneDim(sampledImage));
                 ImageView iv = findViewById(R.id.ivPreview);
                 iv.setImageBitmap(bitmap);
@@ -274,7 +275,16 @@ public class MainActivity extends AppCompatActivity {
 
         Mat maskedMat = imageSupport.colorMask(sampledImage);
         Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
-        List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+
+
+        List<Point> corners = null;
+        try {
+            corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+        } catch (AppException e) {
+            toast(e.getLocalizedMessage() + ". Seleziona manualmente i punti");
+            onTouchListener.enable();
+            return;
+        }
 
         Mat drawedMat =  sampledImage.clone();
         for (Point corner : corners) {
@@ -282,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
         }
         showImage(drawedMat);
 
-        automaticCorners = corners;
+        this.corners = corners;
 
         //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
         //showImage(correctedImage);
@@ -296,16 +306,30 @@ public class MainActivity extends AppCompatActivity {
 
         } else {
 
-            if (automaticCorners == null){
-                toast("Il processo per individuare i 4 vertici non è stato eseguito, premere il bottone Corners");
-            } else if (automaticCorners.size() != 4) {
-                toast("Il processo non è riuscito ad individuare i 4 vertici in modo univoco!");
-            } else {
-                isPerspectiveApplied = true;
-                ((TextView)view).setText(R.string.goback);
+            if (onTouchListener.isEnable()) {
+                corners = onTouchListener.getCorners();
+                if (corners.size() != 4) {
+                    toast("Selezionare 4 vertici prima di applicare la trasformazione");
+                } else {
+                    isPerspectiveApplied = true;
+                    ((TextView)view).setText(R.string.goback);
 
-                Mat correctedImage = imageSupport.projectOnHalfCourt(automaticCorners, sampledImage);
-                showImage(correctedImage);
+                    Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
+                    showImage(correctedImage);
+                }
+            }else {
+
+                if (corners == null) {
+                    toast("Il processo per individuare i 4 vertici non è stato eseguito, premere il bottone Corners");
+                } else if (corners.size() != 4) {
+                    toast("Il processo non è riuscito ad individuare i 4 vertici in modo univoco!");
+                } else {
+                    isPerspectiveApplied = true;
+                    ((TextView) view).setText(R.string.goback);
+
+                    Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
+                    showImage(correctedImage);
+                }
             }
         }
     }

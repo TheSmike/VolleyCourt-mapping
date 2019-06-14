@@ -4,7 +4,7 @@ import org.opencv.core.Point;
 
 public class LineFunction {
 
-    private static final double EPSILON = 2;
+    private static final double EPSILON = 4;
     private static final double MARGIN = 7;
     private Double m,b;
     public double xStart;

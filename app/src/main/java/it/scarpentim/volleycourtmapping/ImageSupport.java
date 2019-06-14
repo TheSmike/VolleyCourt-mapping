@@ -794,7 +794,7 @@ public class ImageSupport {
         return intersections;
     }
 
-    private LineIntersection[] getBottomRightLineIntersections(List<LineFunction> fzs, LineFunction f1, org.opencv.core.Point endPoint) {
+    private LineIntersection[] getBottomRightLineIntersections(List<LineFunction> fzs, LineFunction fBase, org.opencv.core.Point endPoint) {
 
         double minDistance = Double.MAX_VALUE;
         int minIntersectionLineIdx = -1;
@@ -806,11 +806,11 @@ public class ImageSupport {
 
 
         for (int i = 0; i < fzs.size(); i++) {
-            LineFunction f2 = fzs.get(i);
-            if (f1 != f2) {
-                org.opencv.core.Point intersection = f1.intersection(f2);
+            LineFunction fi = fzs.get(i);
+            if (fBase != fi) {
+                org.opencv.core.Point intersection = fBase.intersection(fi);
                 if (intersection != null){
-                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
+                    if (fBase.segmentContainPoint(intersection) && fi.segmentContainPoint(intersection)){
                         double dist = distanceSquare(intersection, endPoint);
                         if (dist < minDistance){
                             secondMinDistance = minDistance;
@@ -830,65 +830,49 @@ public class ImageSupport {
                 }
             }
         }
-        LineIntersection intersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
-        LineIntersection intersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);
 
-        f1 = intersection1.getLineFunction();
-        endPoint = intersection1.getLineFunction().getExtremePointNearTop();
-        minDistance = Double.MAX_VALUE;
-        minIntersectionLineIdx = -1;
-        minIntersection = null;
+        LineIntersection lineIntersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
+        LineIntersection lineIntersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);
 
+        List<LineFunction> conjunctionLines = new ArrayList<>();
+        LineFunction f1 = lineIntersection1.getLineFunction();
+        LineFunction f2 = lineIntersection2.getLineFunction();
         for (int i = 0; i < fzs.size(); i++) {
-            LineFunction f2 = fzs.get(i);
-            if (f1 != f2) {
-                org.opencv.core.Point intersection = f1.intersection(f2);
-                if (intersection != null){
-                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
-                        double dist = distanceSquare(intersection, endPoint);
-                        if (dist < minDistance){
-                            minDistance = dist;
-                            minIntersectionLineIdx = i;
-                            minIntersection = intersection;
-                        }
+            LineFunction fi = fzs.get(i);
+            if (f1 != fi && f2 != fi) {
+                org.opencv.core.Point intersection1 = f1.intersection(fi);
+                org.opencv.core.Point intersection2 = f2.intersection(fi);
+                if (intersection1 != null && intersection2 != null) {
+                    if (f1.segmentContainPoint(intersection1) && fi.segmentContainPoint(intersection1)
+                            && f2.segmentContainPoint(intersection2) && fi.segmentContainPoint(intersection2)) {
+                        conjunctionLines.add(fi);
                     }
                 }
             }
         }
-        LineIntersection intersection3 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
 
-        f1 = intersection2.getLineFunction();
-        endPoint = intersection2.getLineFunction().getExtremePointNearTop();
-        minDistance = Double.MAX_VALUE;
-        minIntersectionLineIdx = -1;
-        minIntersection = null;
-
-        for (int i = 0; i < fzs.size(); i++) {
-            LineFunction f2 = fzs.get(i);
-            if (f1 != f2) {
-                org.opencv.core.Point intersection = f1.intersection(f2);
-                if (intersection != null){
-                    if (f1.segmentContainPoint(intersection) && f2.segmentContainPoint(intersection)){
-                        double dist = distanceSquare(intersection, endPoint);
-                        if (dist < minDistance){
-                            minDistance = dist;
-                            minIntersectionLineIdx = i;
-                            minIntersection = intersection;
-                        }
-                    }
-                }
-            }
+        //se c'è piu di una linea scegliamo quella più in basso (non dovrebbero esserci altri linee in mezzo)
+        float max = Float.MIN_VALUE;
+        int minIdx = -1;
+        for (int i = 0; i < conjunctionLines.size(); i++) {
+            if (conjunctionLines.get(i) == fBase)
+                continue;
+            org.opencv.core.Point intersection = conjunctionLines.get(i).intersection(f1);
+            if (intersection.y > max)
+                minIdx = i;
         }
-        LineIntersection intersection4 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
+        LineFunction lineFunction3 = conjunctionLines.get(minIdx);
+        org.opencv.core.Point intersection3 = lineFunction3.intersection(f1);
+        org.opencv.core.Point intersection4 = lineFunction3.intersection(f2);
 
-        if (intersection3.getLineFunction() != intersection4.getLineFunction())
-            throw new RuntimeException("La linea finale non combacia");
+        LineIntersection lineIntersection3 = new LineIntersection(lineFunction3, intersection3);
+        LineIntersection lineIntersection4 = new LineIntersection(lineFunction3, intersection4);
 
         return new LineIntersection[]{
-                intersection1,
-                intersection2,
-                intersection3,
-                intersection4
+                lineIntersection1,
+                lineIntersection2,
+                lineIntersection3,
+                lineIntersection4
         };
     }
 
