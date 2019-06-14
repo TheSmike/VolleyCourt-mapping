@@ -26,6 +26,7 @@ import java.util.ListIterator;
 import java.util.Map;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
+import it.scarpentim.volleycourtmapping.exception.AppException;
 import it.scarpentim.volleycourtmapping.geometry.GeoUtils;
 import it.scarpentim.volleycourtmapping.geometry.LineFunction;
 import it.scarpentim.volleycourtmapping.geometry.LineIntersection;
@@ -44,7 +45,7 @@ public class ImageSupport {
     private static final double ROUND = 1;
     private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287,124);
 
-    private MainActivity activity;
+    private DebugActivity activity;
 
     private static final Scalar WHITE = new Scalar(255,255,255);
     private static final Scalar BLACK = new Scalar(0,0,0);
@@ -55,7 +56,7 @@ public class ImageSupport {
     private int screenWidth;
     private int screenHeight;
 
-    public ImageSupport(MainActivity mainActivity, String[] labels) {
+    public ImageSupport(DebugActivity mainActivity, String[] labels) {
         this.activity = mainActivity;
         initColors(labels);
         initDisplaySize();
@@ -705,7 +706,7 @@ public class ImageSupport {
         return new Scalar(color.val[0]-ROUND,color.val[1]-ROUND,color.val[2]-ROUND);
     }
 
-    public List<org.opencv.core.Point> findCourtExtremesFromRigthView(Mat lines) {
+    public List<org.opencv.core.Point> findCourtExtremesFromRigthView(Mat lines) throws AppException {
 
         lines = mergeNearParallelLines(lines);
         List<LineFunction> fzs = matToLineFunction(lines);
@@ -794,7 +795,7 @@ public class ImageSupport {
         return intersections;
     }
 
-    private LineIntersection[] getBottomRightLineIntersections(List<LineFunction> fzs, LineFunction fBase, org.opencv.core.Point endPoint) {
+    private LineIntersection[] getBottomRightLineIntersections(List<LineFunction> fzs, LineFunction fBase, org.opencv.core.Point endPoint) throws AppException {
 
         double minDistance = Double.MAX_VALUE;
         int minIntersectionLineIdx = -1;
@@ -830,6 +831,9 @@ public class ImageSupport {
                 }
             }
         }
+
+        if(minIntersectionLineIdx == -1 || secondMinIntersectionLineIdx == -1)
+            throw new AppException("Impossibile individuare automaticamente le linee del campo");
 
         LineIntersection lineIntersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
         LineIntersection lineIntersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);

@@ -1,6 +1,5 @@
 package it.scarpentim.volleycourtmapping;
 
-import android.app.Activity;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -16,29 +15,31 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
 
     private Mat image = null;
     List<Point> mCorners;
-    private MainActivity activity;
+    private DebugActivity activity;
+    private boolean enable = false;
 
-    public OnVolleyTouchHandler(MainActivity activity) {
+    public OnVolleyTouchHandler(DebugActivity activity) {
         this.activity = activity;
         mCorners = new ArrayList<>();
     }
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        if (image == null)
-            throw new RuntimeException("Immagine non caricata corettamente");
+        if(enable) {
+            if (image == null)
+                throw new RuntimeException("Immagine non caricata corettamente");
 
-        int projectedX = (int)((double)motionEvent.getX() *
-                ((double) image.width()/ (double)view.getWidth()));
-        int projectedY = (int)((double)motionEvent.getY() *
-                ((double) image.height()/ (double)view.getHeight()));
-        Point corner = new Point(projectedX, projectedY);
+            int projectedX = (int) ((double) motionEvent.getX() *
+                    ((double) image.width() / (double) view.getWidth()));
+            int projectedY = (int) ((double) motionEvent.getY() *
+                    ((double) image.height() / (double) view.getHeight()));
+            Point corner = new Point(projectedX, projectedY);
 
-        mCorners.add(corner);
-        Imgproc.circle(image, corner, (int) 5, new Scalar(0,0,255),2);
-        activity.showImage(image);
+            mCorners.add(corner);
+            Imgproc.circle(image, corner, (int) 20, new Scalar(0, 100, 255), 3);
+            activity.showImage(image);
+        }
         return false;
-
     }
 
     public void setImage(Mat image) {
@@ -52,5 +53,13 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
     public void reset() {
         mCorners.clear();
 
+    }
+
+    public void enable() {
+        enable = true;
+    }
+
+    public boolean isEnable() {
+        return enable;
     }
 }

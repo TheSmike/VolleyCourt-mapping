@@ -36,7 +36,7 @@ import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
 import it.scarpentim.volleycourtmapping.exception.AppException;
 
-public class MainActivity extends AppCompatActivity {
+public class DebugActivity extends AppCompatActivity {
 
     private static final String TAG = "volleyCourt";
 
