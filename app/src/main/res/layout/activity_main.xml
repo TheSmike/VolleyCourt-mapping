@@ -4,161 +4,32 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".DebugActivity">
+    tools:context=".MainActivity">
 
     <ImageView
         android:id="@+id/ivPreview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:contentDescription="@string/image_preview"
         android:scaleType="fitXY"
         android:src="@mipmap/ic_launcher"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/tv_MaxThreshCanny"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Canny max Th."
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_MinThreshCanny"
-        app:layout_constraintLeft_toLeftOf="parent" />
-
-    <SeekBar
-        android:id="@+id/seekBar_MaxThreshCanny"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="120dp"
-        android:layout_marginBottom="8dp"
-        android:max="400"
-        android:progress="80"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_MinThreshCanny" />
-
-    <TextView
-        android:id="@+id/tv_MinThreshCanny"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Canny min Th."
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.244"
+        tools:layout_editor_absoluteX="0dp" />
 
-    <SeekBar
-        android:id="@+id/seekBar_MinThreshCanny"
+    <ImageView
+        android:id="@+id/ivSelector"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="120dp"
+
+        android:src="@mipmap/ic_launcher"
+        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        android:max="400"
-        android:progress="100"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-
-    <TextView
-        android:id="@+id/tv_HoughMinLength"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Hough min. length"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_MaxThreshCanny"
-        app:layout_constraintLeft_toLeftOf="parent" />
-
-    <SeekBar
-        android:id="@+id/seekBar_HoughMinLength"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="120dp"
-        android:layout_marginBottom="8dp"
-        android:max="350"
-        android:progress="125"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_MaxThreshCanny" />
-
-    <TextView
-        android:id="@+id/tv_HoughVotes"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Hough votes"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMinLength"
-        app:layout_constraintLeft_toLeftOf="parent" />
-
-    <SeekBar
-        android:id="@+id/seekBar_HoughVotes"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="120dp"
-        android:layout_marginBottom="8dp"
-        android:max="100"
-        android:progress="5"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMinLength" />
-
-    <TextView
-        android:id="@+id/tv_HoughMaxDistance"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Hough max dist."
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes"
-        app:layout_constraintLeft_toLeftOf="parent" />
-
-    <SeekBar
-        android:id="@+id/seekBar_HoughMaxDistance"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="120dp"
-        android:layout_marginBottom="8dp"
-        android:max="100"
-        android:progress="25"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughVotes" />
-
-    <Button
-        android:id="@+id/btn_corners"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp"
-        android:onClick="findCorners"
-        android:text="Corners"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
-        app:layout_constraintEnd_toStartOf="@+id/btn_transform" />
-
-    <Button
-        android:id="@+id/btn_transform"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginBottom="8dp"
-        android:onClick="transformImage"
-        android:text="@string/transform"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/btn_classify"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginBottom="8dp"
-        android:onClick="classifyImage"
-        android:text="Classify"
-        app:layout_constraintBottom_toTopOf="@+id/seekBar_HoughMaxDistance"
-        app:layout_constraintStart_toEndOf="@+id/btn_transform" />
-
-    <!--<com.skydoves.colorpickerpreference.ColorPickerView-->
-        <!--android:id="@+id/colorPickerView"-->
-        <!--android:layout_width="300dp"-->
-        <!--android:layout_height="300dp"-->
-        <!--android:layout_marginStart="8dp"-->
-        <!--android:layout_marginTop="8dp"-->
-        <!--android:layout_marginEnd="8dp"-->
-        <!--app:layout_constraintBottom_toTopOf="@+id/btn_transform"-->
-        <!--app:layout_constraintEnd_toEndOf="parent"-->
-        <!--app:layout_constraintStart_toStartOf="parent"-->
-        <!--app:layout_constraintTop_toBottomOf="@+id/ivPreview"-->
-        <!--app:palette="@drawable/palette"-->
-        <!--app:selector="@drawable/wheel" />-->
-
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/ivPreview"
+        tools:layout_editor_absoluteX="0dp" />
 
 </android.support.constraint.ConstraintLayout>

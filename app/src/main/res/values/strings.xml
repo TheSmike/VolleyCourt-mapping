@@ -10,4 +10,6 @@
     <string name="cancel">annulla</string>
     <string name="action_color_slicing">color Slicing</string>
     <string name="action_resetImage">clear all</string>
+    <string name="add_image">Add image</string>
+    <string name="debug_mode">debug mode</string>
 </resources>

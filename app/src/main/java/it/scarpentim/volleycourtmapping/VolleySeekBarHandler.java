@@ -20,11 +20,11 @@ public class VolleySeekBarHandler implements SeekBar.OnSeekBarChangeListener {
     private int houghMinlength;
     private int houghMaxDistance;
 
-    private DebugActivity activity;
+    private VolleyAbstractActivity activity;
     private SharedPreferences sharedPref;
     SharedPreferences.Editor editor;
 
-    public VolleySeekBarHandler(DebugActivity activity) {
+    public VolleySeekBarHandler(VolleyAbstractActivity activity) {
         this.activity = activity;
         SeekBar minSeek, maxSeek, houghVotesSeek, houghMinLengthSeek, houghMaxDistanceSeek;
 

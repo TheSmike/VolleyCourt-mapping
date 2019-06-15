@@ -1,4 +1,4 @@
-package it.scarpentim.volleycourtmapping;
+package it.scarpentim.volleycourtmapping.image;
 
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import it.scarpentim.volleycourtmapping.VolleyAbstractActivity;
+import it.scarpentim.volleycourtmapping.VolleySeekBarHandler;
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.exception.AppException;
 import it.scarpentim.volleycourtmapping.geometry.GeoUtils;
@@ -45,7 +47,7 @@ public class ImageSupport {
     private static final double ROUND = 1;
     private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287,124);
 
-    private DebugActivity activity;
+    private VolleyAbstractActivity activity;
 
     private static final Scalar WHITE = new Scalar(255,255,255);
     private static final Scalar BLACK = new Scalar(0,0,0);
@@ -55,8 +57,10 @@ public class ImageSupport {
     private float heightRatio;
     private int screenWidth;
     private int screenHeight;
+    private int imageWidth;
+    private int imageHeight;
 
-    public ImageSupport(DebugActivity mainActivity, String[] labels) {
+    public ImageSupport(VolleyAbstractActivity mainActivity, String[] labels) {
         this.activity = mainActivity;
         initColors(labels);
         initDisplaySize();
@@ -95,6 +99,9 @@ public class ImageSupport {
 
         this.widthRatio = (float)sampledImage.cols() / YOLO_SIZE;
         this.heightRatio = (float)sampledImage.rows() / YOLO_SIZE;
+
+        this.imageWidth = sampledImage.cols();
+        this.imageHeight = sampledImage.rows();
 
         return sampledImage;
     }
@@ -865,6 +872,9 @@ public class ImageSupport {
             if (intersection.y > max)
                 minIdx = i;
         }
+        if(minIdx == -1)
+            throw new AppException("Impossibile individuare automaticamente le linee del campo");
+
         LineFunction lineFunction3 = conjunctionLines.get(minIdx);
         org.opencv.core.Point intersection3 = lineFunction3.intersection(f1);
         org.opencv.core.Point intersection4 = lineFunction3.intersection(f2);
@@ -915,5 +925,30 @@ public class ImageSupport {
 //        Mat sampledImage = new Mat();
 //        Imgproc.resize(image, sampledImage, new Size(), 0.5, 0.5, Imgproc.INTER_AREA);
 //        return sampledImage;
+    }
+
+    public Mat drawSideSelector() {
+
+        Mat img = new Mat(imageHeight, imageWidth, CvType.CV_8UC3);
+        img.setTo(new Scalar(220,220,220));
+        int D = 50;
+
+        int courtWidth = (imageWidth - D*2 - 6) / 2;
+        int courtHeight = courtWidth;
+
+
+        drawBlueLine(img, D, D, D, D + courtWidth);
+        drawBlueLine(img, D, D + courtWidth, D + courtWidth, D + courtWidth);
+        drawBlueLine(img, D + courtWidth, D + courtWidth, D + courtWidth, D);
+        drawBlueLine(img, D + courtWidth, D, D, D);
+
+        return img;
+    }
+
+    private void drawBlueLine(Mat img, int xStart, int yStart, int xEnd, int yEnd) {
+        Scalar color = new Scalar(51, 102, 255);
+        org.opencv.core.Point lineStart = new org.opencv.core.Point(xStart, yStart);
+        org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
+        Imgproc.line(img, lineStart, lineEnd, color, 3);
     }
 }

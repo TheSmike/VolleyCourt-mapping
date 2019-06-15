@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -35,15 +34,9 @@ import java.util.List;
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
 import it.scarpentim.volleycourtmapping.exception.AppException;
+import it.scarpentim.volleycourtmapping.image.ImageSupport;
 
-public class DebugActivity extends AppCompatActivity {
-
-    private static final String TAG = "volleyCourt";
-
-    private static final int SELECT_PICTURE = 1;
-    public static final String LAST_IMAGE = "LAST_IMAGE";
-
-    private String selectedImagePath;
+public class DebugActivity extends VolleyAbstractActivity {
 
     private ImageSupport imageSupport = null;
     VolleySeekBarHandler seekBarHandler;
@@ -51,10 +44,8 @@ public class DebugActivity extends AppCompatActivity {
 
     private Mat sampledImage = null;
     private Mat drawedImage;
-    private SharedPreferences sharedPref;
     private boolean isPerspectiveApplied = false;
 
-    Classifier classifier;
     private List<Point> corners = null;
 
 
@@ -70,7 +61,7 @@ public class DebugActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_debug);
         seekBarHandler = new VolleySeekBarHandler(this);
         sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         selectedImagePath = sharedPref.getString(LAST_IMAGE, null);
@@ -116,7 +107,7 @@ public class DebugActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.mymenu, menu);
+        getMenuInflater().inflate(R.menu.debugmenu, menu);
         return true;
     }
 
@@ -198,6 +189,7 @@ public class DebugActivity extends AppCompatActivity {
         }
     }
 
+    @Override
     public void showImage() {
         if (!checkImageLoaded()) return;
         Bitmap bitmap;

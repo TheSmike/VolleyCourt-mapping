@@ -15,10 +15,10 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
 
     private Mat image = null;
     List<Point> mCorners;
-    private DebugActivity activity;
+    private VolleyAbstractActivity activity;
     private boolean enable = false;
 
-    public OnVolleyTouchHandler(DebugActivity activity) {
+    public OnVolleyTouchHandler(VolleyAbstractActivity activity) {
         this.activity = activity;
         mCorners = new ArrayList<>();
     }
