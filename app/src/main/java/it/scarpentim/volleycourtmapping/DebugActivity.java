@@ -3,7 +3,6 @@ package it.scarpentim.volleycourtmapping;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -56,15 +55,17 @@ public class DebugActivity extends VolleyAbstractActivity {
         COLOR_TH,
     }
 
+    VolleyParams volleyParams;
+
     private ShowType show = ShowType.IMAGE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_debug);
-        seekBarHandler = new VolleySeekBarHandler(this);
-        sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        selectedImagePath = sharedPref.getString(LAST_IMAGE, null);
+        volleyParams = new VolleyParams(this);
+        seekBarHandler = new VolleySeekBarHandler(this, volleyParams);
+        selectedImagePath = volleyParams.getLastImage();
         onTouchListener = new OnVolleyTouchHandler(this);
         findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
         classifier = ClassifierFactory.getYolov3Instance(this);
@@ -165,9 +166,8 @@ public class DebugActivity extends VolleyAbstractActivity {
             if (requestCode == SELECT_PICTURE) {
                 Uri selectedImageUri = data.getData();
                 selectedImagePath = imageSupport.getPath(selectedImageUri);
-                SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putString(LAST_IMAGE, selectedImagePath);
-                editor.commit();
+
+                volleyParams.setLastImage(selectedImagePath);
                 loadImageFromPath();
             }
         }
@@ -205,12 +205,12 @@ public class DebugActivity extends VolleyAbstractActivity {
 
             case CANNY:
                 Mat maskedCMat = imageSupport.colorMask(sampledImage);
-                Mat cannyMat = imageSupport.edgeDetector(maskedCMat, seekBarHandler);
+                Mat cannyMat = imageSupport.edgeDetector(maskedCMat, volleyParams);
                 bitmap = imageSupport.matToBitmap(cannyMat);
                 break;
             case HOUGH:
                 Mat maskedMat = imageSupport.colorMask(sampledImage);
-                Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
+                Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
                 drawedImage = imageSupport.drawHoughLines(maskedMat, houghMat);
                 bitmap = imageSupport.matToBitmap(drawedImage);
 
@@ -266,7 +266,7 @@ public class DebugActivity extends VolleyAbstractActivity {
         }
 
         Mat maskedMat = imageSupport.colorMask(sampledImage);
-        Mat houghMat = imageSupport.houghTransform(maskedMat, seekBarHandler);
+        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
 
 
         List<Point> corners = null;
@@ -368,7 +368,7 @@ public class DebugActivity extends VolleyAbstractActivity {
         Mat tmpMat;
         @Override
         protected List<Classifier.Recognition> doInBackground(Mat... mats) {
-            Mat mat = imageSupport.resizeForYolo(mats[0]);
+            Mat mat = imageSupport.resizeForYolo(mats[0], classifier.getImageSize());
             List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(mat));
             tmpMat = imageSupport.drawBoxes(mats[0], recognitions, 0.2);
             return recognitions;

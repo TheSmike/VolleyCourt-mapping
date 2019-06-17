@@ -27,6 +27,9 @@ import java.util.List;
  * Generic interface for interacting with different recognition engines.
  */
 public interface Classifier {
+
+    int getImageSize();
+
     /**
      * An immutable result returned by a Classifier describing what was recognized.
      */

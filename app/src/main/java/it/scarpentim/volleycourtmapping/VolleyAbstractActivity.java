@@ -13,10 +13,8 @@ import it.scarpentim.volleycourtmapping.classification.Classifier;
 
 public abstract class VolleyAbstractActivity extends AppCompatActivity {
 
-    protected static final String LAST_IMAGE = "LAST_IMAGE";
-    protected static final String TAG = "volleyCourt";
+        protected static final String TAG = "volleyCourt";
     protected static final int SELECT_PICTURE = 1;
-    protected SharedPreferences sharedPref;
     protected String selectedImagePath;
 
     protected Classifier classifier;

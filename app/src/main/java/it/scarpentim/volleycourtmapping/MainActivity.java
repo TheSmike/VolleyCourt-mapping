@@ -2,40 +2,68 @@ package it.scarpentim.volleycourtmapping;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
+import java.util.List;
 
+import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
+import it.scarpentim.volleycourtmapping.exception.AppException;
 import it.scarpentim.volleycourtmapping.image.ImageSupport;
 
 public class MainActivity extends VolleyAbstractActivity {
 
     private Mat sampledImage = null;
     private ImageSupport imageSupport = null;
+    private OnSideSelectorHandler sideSelectorHandler;
+
+    private ImageView ivSelector;
+    private ImageView ivPreview;
+
+    private TextView tvMsg;
+
+    private State state = State.START;
+    private VolleyParams volleyParams;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        sharedPref = this.getPreferences(Context.MODE_PRIVATE);
-        selectedImagePath = sharedPref.getString(LAST_IMAGE, null);
+        ivSelector = findViewById(R.id.ivSelector);
+        ivPreview = findViewById(R.id.ivPreview);
+        tvMsg = findViewById(R.id.tvMsg);
+        volleyParams = new VolleyParams(this);
 
-        classifier = ClassifierFactory.getYolov3Instance(this);
+        selectedImagePath = volleyParams.getLastImage();
+
+        classifier = ClassifierFactory.getYolov3TinyInstance(this);
         imageSupport = new ImageSupport(this, classifier.getLabels());
+
+        sideSelectorHandler = new OnSideSelectorHandler(this);
+        ivSelector.setOnTouchListener(sideSelectorHandler);
+
+
     }
 
     @Override
@@ -70,23 +98,22 @@ public class MainActivity extends VolleyAbstractActivity {
 
     }
 
+    private void resetAll() {
+        state = State.START;
+        ivSelector.setAlpha(1f);
+        ivSelector.setVisibility(View.VISIBLE);
+        sideSelectorHandler.reset();
+
+    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
             if (requestCode == SELECT_PICTURE) {
                 Uri selectedImageUri = data.getData();
                 selectedImagePath = imageSupport.getPath(selectedImageUri);
-                SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putString(LAST_IMAGE, selectedImagePath);
-                editor.commit();
+                volleyParams.setLastImage(selectedImagePath);
                 loadImageFromPath();
-                Mat mat = imageSupport.drawSideSelector();
-
-                Bitmap bitmap;
-                bitmap = imageSupport.matToBitmap(mat);
-                ImageView iv = findViewById(R.id.ivSelector);
-                iv.setImageBitmap(bitmap);
-
             }
         }
     }
@@ -98,8 +125,11 @@ public class MainActivity extends VolleyAbstractActivity {
             if(file.exists()) {
                 sampledImage = imageSupport.loadImage(selectedImagePath);
                 Bitmap bitmap = imageSupport.matToBitmap(sampledImage);
-                ImageView iv = findViewById(R.id.ivPreview);
-                iv.setImageBitmap(bitmap);
+                ivPreview.setImageBitmap(bitmap);
+
+                Mat sideSelector = sideSelectorHandler.drawSideSelector();
+                showSideSelector(sideSelector);
+                resetAll();
             }
         }
     }
@@ -107,14 +137,13 @@ public class MainActivity extends VolleyAbstractActivity {
 
     @Override
     public void showImage() {
-        Bitmap bitmap = imageSupport.matToBitmap(sampledImage);
-        ImageView iv = findViewById(R.id.ivPreview);
-        iv.setImageBitmap(bitmap);
+        showImage(sampledImage);
     }
 
     @Override
     public void showImage(Mat image) {
-
+        Bitmap bitmap = imageSupport.matToBitmap(image);
+        ivPreview.setImageBitmap(bitmap);
     }
 
     protected BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -131,4 +160,101 @@ public class MainActivity extends VolleyAbstractActivity {
             }
         }
     };
+
+    public int getImageHeight() {
+        return imageSupport.getImageHeight();
+    }
+
+    public int getImageWidth() {
+        return imageSupport.getImageWidth();
+    }
+
+    public void showSideSelector(Mat img) {
+        Bitmap bitmap = imageSupport.matToBitmap(img);
+        ivSelector.setImageBitmap(bitmap);
+    }
+
+    public void sideSelected() {
+        tvMsg.setText(R.string.processing);
+        sideSelectorHandler.disableSelection();
+        ComputeTask computeTask = new ComputeTask();
+        computeTask.execute();
+    }
+
+    private class ComputeTask extends AsyncTask<Mat, String, Mat>{
+
+        Mat tmpMat;
+
+        @Override
+        protected Mat doInBackground(Mat... mats) {
+            List<Point> corners = findCorners();
+            if (corners != null){
+                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
+                //return correctedImage;
+
+                ImageSupport is2 = new ImageSupport(MainActivity.this, classifier.getLabels());
+                //Mat originalImage = Imgcodecs.imread(selectedImagePath);
+                Rect rectCrop = new Rect(1703, 1054, 3503, 1610);
+                Mat imageRoi = is2.loadImage(selectedImagePath, rectCrop);
+                Mat resized = imageSupport.resizeForYolo(imageRoi, classifier.getImageSize());
+                List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(resized));
+                tmpMat = imageSupport.drawBoxes(imageRoi, recognitions, 0.05);
+                return tmpMat;
+
+
+            } else {
+                return null;
+            }
+
+
+
+        }
+
+        @Override
+        protected void onPostExecute(Mat mat) {
+            super.onPostExecute(mat);
+            showImage(mat);
+            tvMsg.setText(R.string.finished);
+        }
+    }
+
+    public List<Point> findCorners() {
+        if (sampledImage == null) {
+            toast("Nessuna immagine caricata");
+            return null;
+        }
+
+        Mat maskedMat = imageSupport.colorMask(sampledImage);
+        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
+
+        List<Point> corners;
+        try {
+            corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+        } catch (AppException e) {
+            toast(e.getLocalizedMessage() + ". Seleziona manualmente i punti");
+            //onTouchListener.enable();
+            return null;
+        }
+        return corners;
+    }
+
+    private void toast(String msg) {
+        Context context = getApplicationContext();
+        int duration = Toast.LENGTH_LONG;
+        Toast toast = Toast.makeText(context, msg, duration);
+        toast.show();
+    }
+
+    private enum State {
+        START,
+        SIDE_SELECTED,
+        HOUGH,
+        CORNERS,
+        PERSON_DETECTION,
+        PROJECTION,
+        DIGITALIZATION
+    }
+
+
+
 }

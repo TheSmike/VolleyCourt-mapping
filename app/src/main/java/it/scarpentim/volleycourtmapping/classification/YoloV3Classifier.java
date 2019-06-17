@@ -21,7 +21,7 @@ import java.util.PriorityQueue;
 public class YoloV3Classifier implements Classifier {
 
     // Only return this many results with at least this confidence.
-    private static final int MAX_RESULTS = 15;
+    private static final int MAX_RESULTS = 6;
 
     private static final int NUM_CLASSES = 80;
 
@@ -29,6 +29,7 @@ public class YoloV3Classifier implements Classifier {
 
     private final static float OVERLAP_THRESHOLD = 0.5f;
     public static final String FILE_ANDROID_ASSET = "file:///android_asset/";
+    public static final double CONFIDENCE_THRESHOLD = 0.001;
 
     private int[] anchors;
     private String[] labels;
@@ -88,6 +89,11 @@ public class YoloV3Classifier implements Classifier {
     }
 
     private YoloV3Classifier() {}
+
+    @Override
+    public int getImageSize() {
+        return inputSize;
+    }
 
     @Override
     public List<Recognition> recognizeImage(final Bitmap bitmap) {
@@ -217,10 +223,12 @@ public class YoloV3Classifier implements Classifier {
                         }
                     }
 
-                    final float confidenceInClass = maxClass * confidence;
-                    if (confidenceInClass > 0.01) {
-                        Log.v(TAG, String.format("%s (%d) %f %s", labels[detectedClass], detectedClass, confidenceInClass, rect));
-                        pq.add(new Recognition("" + offset, labels[detectedClass], confidenceInClass, rect));
+                    if(detectedClass == 0) {
+                        final float confidenceInClass = maxClass * confidence;
+                        if (confidenceInClass > CONFIDENCE_THRESHOLD) {
+                            Log.v(TAG, String.format("%s (%d) %f %s", labels[detectedClass], detectedClass, confidenceInClass, rect));
+                            pq.add(new Recognition("" + offset, labels[detectedClass], confidenceInClass, rect));
+                        }
                     }
                 }
             }

@@ -12,6 +12,7 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -26,7 +27,7 @@ import java.util.ListIterator;
 import java.util.Map;
 
 import it.scarpentim.volleycourtmapping.VolleyAbstractActivity;
-import it.scarpentim.volleycourtmapping.VolleySeekBarHandler;
+import it.scarpentim.volleycourtmapping.VolleyParams;
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.exception.AppException;
 import it.scarpentim.volleycourtmapping.geometry.GeoUtils;
@@ -106,6 +107,26 @@ public class ImageSupport {
         return sampledImage;
     }
 
+    public Mat loadImage(String path, Rect rectCrop) {
+        Mat originalImage = Imgcodecs.imread(path);
+        Mat imageRoi = new Mat(originalImage, rectCrop);
+
+        Mat rgbImage = new Mat();
+        Imgproc.cvtColor(imageRoi, rgbImage, Imgproc.COLOR_BGR2RGB);
+        Mat sampledImage = new Mat();
+        double downSampleRatio = calculateSubSampleSize(rgbImage, screenWidth, screenHeight);
+        Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
+                downSampleRatio, Imgproc.INTER_AREA);
+
+        this.widthRatio = (float)sampledImage.cols() / YOLO_SIZE;
+        this.heightRatio = (float)sampledImage.rows() / YOLO_SIZE;
+
+        this.imageWidth = sampledImage.cols();
+        this.imageHeight = sampledImage.rows();
+
+        return sampledImage;
+    }
+
     public double calculateSubSampleSize(Mat srcImage, int reqWidth, int reqHeight) {
         // Recuperiamo l'altezza e larghezza dell'immagine sorgente
         int height = srcImage.height();
@@ -146,21 +167,18 @@ public class ImageSupport {
     }
 
 
-    public Mat houghTransform(Mat image, VolleySeekBarHandler sbh) {
+    public Mat houghTransform(Mat image, VolleyParams sbh) {
         Mat mEdgeImage = edgeDetector(image, sbh);
 
         Mat lines = new Mat();
         Imgproc.HoughLinesP(mEdgeImage, lines, 1, Math.PI / 180, sbh.getHoughVotes(), sbh.getHoughMinlength(), sbh.getHoughMaxDistance());
-                
-//
-        
 
         return lines;
     }
 
-    public Mat edgeDetector(Mat image, VolleySeekBarHandler sbh) {
+    public Mat edgeDetector(Mat image, VolleyParams params) {
 //        return sobelDetector(image);
-        return cannyDetector(image, sbh);
+        return cannyDetector(image, params);
     }
 
     private Mat sobelDetector(Mat image) {
@@ -181,7 +199,7 @@ public class ImageSupport {
         return edgeImage;
     }
 
-    private Mat cannyDetector(Mat image, VolleySeekBarHandler sbh) {
+    private Mat cannyDetector(Mat image, VolleyParams sbh) {
         Mat mGray = new Mat(image.height(),image.width(), CvType.CV_8UC1);
         Mat mEdgeImage = new Mat(image.height(),image.width(), CvType.CV_8UC1);
         Imgproc.cvtColor(image, mGray, Imgproc.COLOR_RGB2GRAY);
@@ -518,8 +536,8 @@ public class ImageSupport {
         return r + g > 210*2 ||  sum > (225*3);
     }
 
-    public Mat resizeForYolo(Mat mat) {
-        Mat returnMat = new Mat(YOLO_SIZE, YOLO_SIZE, mat.type());
+    public Mat resizeForYolo(Mat mat, int yoloSize) {
+        Mat returnMat = new Mat(yoloSize, yoloSize, mat.type());
         Imgproc.resize(mat, returnMat, returnMat.size());
         return returnMat;
     }
@@ -646,7 +664,7 @@ public class ImageSupport {
         return transformation;
     }
 
-    public Mat houghTransformWithColorFilter(Mat image, VolleySeekBarHandler seekBarHandler) {
+    public Mat houghTransformWithColorFilter(Mat image, VolleyParams volleyParams) {
         Mat mask = new Mat();
         Scalar lowerB, upperB;
         Log.d(TAG, "tipo immagine: " + image.type());
@@ -655,10 +673,10 @@ public class ImageSupport {
         Core.inRange(image, lowerB, upperB, mask);
         Mat dest = new Mat();
         Core.bitwise_and(image, image, dest, mask);
-        //Mat mEdgeImage = edgeDetector(dest, seekBarHandler);
+        //Mat mEdgeImage = edgeDetector(dest, volleyParams);
 
         Mat lines = new Mat();
-        Imgproc.HoughLinesP(mask, lines, 1, Math.PI / 180, seekBarHandler.getHoughVotes(), seekBarHandler.getHoughMinlength(), seekBarHandler.getHoughMaxDistance());
+        Imgproc.HoughLinesP(mask, lines, 1, Math.PI / 180, volleyParams.getHoughVotes(), volleyParams.getHoughMinlength(), volleyParams.getHoughMaxDistance());
         return lines;
     }
 
@@ -927,28 +945,13 @@ public class ImageSupport {
 //        return sampledImage;
     }
 
-    public Mat drawSideSelector() {
-
-        Mat img = new Mat(imageHeight, imageWidth, CvType.CV_8UC3);
-        img.setTo(new Scalar(220,220,220));
-        int D = 50;
-
-        int courtWidth = (imageWidth - D*2 - 6) / 2;
-        int courtHeight = courtWidth;
-
-
-        drawBlueLine(img, D, D, D, D + courtWidth);
-        drawBlueLine(img, D, D + courtWidth, D + courtWidth, D + courtWidth);
-        drawBlueLine(img, D + courtWidth, D + courtWidth, D + courtWidth, D);
-        drawBlueLine(img, D + courtWidth, D, D, D);
-
-        return img;
+    public int getImageHeight() {
+        return imageHeight;
     }
 
-    private void drawBlueLine(Mat img, int xStart, int yStart, int xEnd, int yEnd) {
-        Scalar color = new Scalar(51, 102, 255);
-        org.opencv.core.Point lineStart = new org.opencv.core.Point(xStart, yStart);
-        org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
-        Imgproc.line(img, lineStart, lineEnd, color, 3);
+    public int getImageWidth() {
+        return imageWidth;
     }
+
+
 }
