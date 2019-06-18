@@ -189,16 +189,23 @@ public class MainActivity extends VolleyAbstractActivity {
         protected Mat doInBackground(Mat... mats) {
             List<Point> corners = findCorners();
             if (corners != null){
-                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
+                //Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
                 //return correctedImage;
 
-                ImageSupport is2 = new ImageSupport(MainActivity.this, classifier.getLabels());
-                //Mat originalImage = Imgcodecs.imread(selectedImagePath);
-                Rect rectCrop = new Rect(1703, 1054, 3503, 1610);
-                Mat imageRoi = is2.loadImage(selectedImagePath, rectCrop);
-                Mat resized = imageSupport.resizeForYolo(imageRoi, classifier.getImageSize());
+//                ImageSupport is2 = new ImageSupport(MainActivity.this, classifier.getLabels());
+//                //Mat originalImage = Imgcodecs.imread(selectedImagePath);
+//                Rect rectCrop = new Rect(1703, 1054, 3503, 1610);
+//                Mat imageRoi = is2.loadImage(selectedImagePath, rectCrop);
+//                Mat resized = imageSupport.resizeForYolo(imageRoi, classifier.getImageSize());
+//                List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(resized));
+//                tmpMat = imageSupport.drawBoxes(imageRoi, recognitions, 0.05);
+//                return tmpMat;
+
+                Mat resized = imageSupport.resizeForYolo(sampledImage, classifier.getImageSize());
                 List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(resized));
-                tmpMat = imageSupport.drawBoxes(imageRoi, recognitions, 0.05);
+                imageSupport.digitalization(sampledImage, corners, recognitions);
+
+                //tmpMat = imageSupport.drawBoxes(sampledImage, recognitions, 0.05);
                 return tmpMat;
 
 

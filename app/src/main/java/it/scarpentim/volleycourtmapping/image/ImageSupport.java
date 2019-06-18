@@ -47,6 +47,7 @@ public class ImageSupport {
     private static final double SQUARE_POINT_MARGIN = POINT_MARGIN * POINT_MARGIN;
     private static final double ROUND = 1;
     private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287,124);
+    private static final Float CONFIDENCE_THRESHOLD = 0.05f;
 
     private VolleyAbstractActivity activity;
 
@@ -954,4 +955,27 @@ public class ImageSupport {
     }
 
 
+    public void digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions) {
+        Mat correctedImage = projectOnHalfCourt(corners, sampledImage);
+
+        for (Classifier.Recognition box : recognitions) {
+            Log.i(TAG, String.valueOf(box));
+            if (box.getConfidence() > CONFIDENCE_THRESHOLD) {
+                org.opencv.core.Point bottomLeft = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().bottom * heightRatio);
+                org.opencv.core.Point bottomRight = new org.opencv.core.Point(box.getLocation().right * widthRatio, box.getLocation().bottom * heightRatio);
+                LineFunction baseLine = new LineFunction(new double[]{bottomLeft.x, bottomLeft.y, bottomRight.x, bottomRight.y});
+
+
+
+                org.opencv.core.Point pt3 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
+                org.opencv.core.Point pt4 = new org.opencv.core.Point(Math.min(box.getLocation().right, box.getLocation().left + (box.getTitle().length() * 13)) * widthRatio, (box.getLocation().top + 11) * heightRatio);
+                Imgproc.rectangle(boxesImage, pt3, pt4, color, FILLED);
+
+                pt1.set(new double[] {pt1.x + 2*heightRatio, (pt1.y + 10*heightRatio)});
+                Imgproc.putText(boxesImage, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (isLight(color)?BLACK:WHITE), (int) (1 * heightRatio));
+            }
+        }
+
+
+    }
 }
