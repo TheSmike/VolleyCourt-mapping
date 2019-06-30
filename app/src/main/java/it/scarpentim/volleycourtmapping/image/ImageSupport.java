@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import it.scarpentim.volleycourtmapping.R;
 import it.scarpentim.volleycourtmapping.VolleyAbstractActivity;
 import it.scarpentim.volleycourtmapping.VolleyParams;
 import it.scarpentim.volleycourtmapping.classification.Classifier;
@@ -41,18 +42,22 @@ public class ImageSupport {
     private static final String TAG = "volleyCourt";
 
     private static final double SLOPE_MARGIN = 0.01745 * 2;
-    private static final double MAX_DISTANCE = 7;
-    public static final int YOLO_SIZE = 416;
+    private static final double MAX_DISTANCE = 10;
+
+    public static final int YOLO_SIZE = 608;
+    //public static final int YOLO_SIZE = 416;
+    public static final Float CONFIDENCE_THRESHOLD = 0.0075f;
+
     private static final double POINT_MARGIN = 5;
     private static final double SQUARE_POINT_MARGIN = POINT_MARGIN * POINT_MARGIN;
     private static final double ROUND = 1;
-    private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287,124);
-    private static final Float CONFIDENCE_THRESHOLD = 0.05f;
+    private static final org.opencv.core.Point MID_POINT = new org.opencv.core.Point(287, 124);
+
 
     private VolleyAbstractActivity activity;
 
-    private static final Scalar WHITE = new Scalar(255,255,255);
-    private static final Scalar BLACK = new Scalar(0,0,0);
+    private static final Scalar WHITE = new Scalar(255, 255, 255);
+    private static final Scalar BLACK = new Scalar(0, 0, 0);
     private static final Map<String, Scalar> colors = new HashMap<>();
 
     private float widthRatio;
@@ -83,10 +88,10 @@ public class ImageSupport {
         int b = 100;
 
         for (int i = 0; i < labels.length; i++) {
-            r = (r + ((i+0) % 3 == 0 ? 0 : 103)) % 256;
-            g = (g + ((i+1) % 3 == 0 ? 0 : 111)) % 256;
-            b = (b + ((i+2) % 3 == 0 ? 0 : 117)) % 256;
-            colors.put(labels[i], new Scalar(r,g,b));
+            r = (r + ((i + 0) % 3 == 0 ? 0 : 103)) % 256;
+            g = (g + ((i + 1) % 3 == 0 ? 0 : 111)) % 256;
+            b = (b + ((i + 2) % 3 == 0 ? 0 : 117)) % 256;
+            colors.put(labels[i], new Scalar(r, g, b));
         }
     }
 
@@ -99,8 +104,8 @@ public class ImageSupport {
         Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
                 downSampleRatio, Imgproc.INTER_AREA);
 
-        this.widthRatio = (float)sampledImage.cols() / YOLO_SIZE;
-        this.heightRatio = (float)sampledImage.rows() / YOLO_SIZE;
+        this.widthRatio = (float) sampledImage.cols() / YOLO_SIZE;
+        this.heightRatio = (float) sampledImage.rows() / YOLO_SIZE;
 
         this.imageWidth = sampledImage.cols();
         this.imageHeight = sampledImage.rows();
@@ -119,8 +124,8 @@ public class ImageSupport {
         Imgproc.resize(rgbImage, sampledImage, new Size(), downSampleRatio,
                 downSampleRatio, Imgproc.INTER_AREA);
 
-        this.widthRatio = (float)sampledImage.cols() / YOLO_SIZE;
-        this.heightRatio = (float)sampledImage.rows() / YOLO_SIZE;
+        this.widthRatio = (float) sampledImage.cols() / YOLO_SIZE;
+        this.heightRatio = (float) sampledImage.rows() / YOLO_SIZE;
 
         this.imageWidth = sampledImage.cols();
         this.imageHeight = sampledImage.rows();
@@ -138,7 +143,7 @@ public class ImageSupport {
             double heightRatio = (double) reqHeight / (double) height;
             double widthRatio = (double) reqWidth / (double) width;
             // Scegliamo tra i due rapporti il minore
-            inSampleSize = heightRatio<widthRatio ? heightRatio :widthRatio;
+            inSampleSize = heightRatio < widthRatio ? heightRatio : widthRatio;
         }
         return inSampleSize;
     }
@@ -148,7 +153,7 @@ public class ImageSupport {
             return null;
         }
         String[] projection = {MediaStore.Images.Media.DATA};
-        Cursor cursor = activity.getContentResolver().query(uri, projection,null, null, null);
+        Cursor cursor = activity.getContentResolver().query(uri, projection, null, null, null);
         if (cursor != null) {
             int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
             cursor.moveToFirst();
@@ -157,8 +162,7 @@ public class ImageSupport {
         return uri.getPath();
     }
 
-    public Bitmap matToBitmap(Mat image)
-    {
+    public Bitmap matToBitmap(Mat image) {
         // Creiamo una Bitmap
         Bitmap bitMap = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.RGB_565);
         // Convertiamo l'immagine di tipo Mat in una Bitmap
@@ -183,26 +187,26 @@ public class ImageSupport {
     }
 
     private Mat sobelDetector(Mat image) {
-        Mat blurredImage=new Mat();
-        Size size=new Size(7,7);
-        Imgproc.GaussianBlur(image, blurredImage, size, 0,0);
+        Mat blurredImage = new Mat();
+        Size size = new Size(7, 7);
+        Imgproc.GaussianBlur(image, blurredImage, size, 0, 0);
         Mat gray = new Mat();
         Imgproc.cvtColor(blurredImage, gray, Imgproc.COLOR_RGB2GRAY);
-        Mat xFirstDervative =new Mat(),yFirstDervative =new Mat();
-        int ddepth= CvType.CV_16S;
-        Imgproc.Sobel(gray, xFirstDervative,ddepth , 1,0);
-        Imgproc.Sobel(gray, yFirstDervative,ddepth , 0,1);
-        Mat absXD=new Mat(),absYD=new Mat();
+        Mat xFirstDervative = new Mat(), yFirstDervative = new Mat();
+        int ddepth = CvType.CV_16S;
+        Imgproc.Sobel(gray, xFirstDervative, ddepth, 1, 0);
+        Imgproc.Sobel(gray, yFirstDervative, ddepth, 0, 1);
+        Mat absXD = new Mat(), absYD = new Mat();
         Core.convertScaleAbs(xFirstDervative, absXD);
         Core.convertScaleAbs(yFirstDervative, absYD);
-        Mat edgeImage=new Mat();
+        Mat edgeImage = new Mat();
         Core.addWeighted(absXD, 0.5, absYD, 0.5, 0, edgeImage);
         return edgeImage;
     }
 
     private Mat cannyDetector(Mat image, VolleyParams sbh) {
-        Mat mGray = new Mat(image.height(),image.width(), CvType.CV_8UC1);
-        Mat mEdgeImage = new Mat(image.height(),image.width(), CvType.CV_8UC1);
+        Mat mGray = new Mat(image.height(), image.width(), CvType.CV_8UC1);
+        Mat mEdgeImage = new Mat(image.height(), image.width(), CvType.CV_8UC1);
         Imgproc.cvtColor(image, mGray, Imgproc.COLOR_RGB2GRAY);
         Imgproc.Canny(mGray, mEdgeImage, sbh.getCannyMinThres(), sbh.getCannyMaxThres());
         return mEdgeImage;
@@ -229,14 +233,14 @@ public class ImageSupport {
             org.opencv.core.Point lineEnd = new org.opencv.core.Point(xEnd, yEnd);
 //            if (fzs.get(i).m > (0.30 - 0.05) && fzs.get(i).m < (0.30 + 0.05)) {
 
-                int r = (255 + i * 10) % 256;
-                int g = (0 + i * 20) % 256;
-                int b = (0 + i * 70) % 256;
-                if (r + g + b < 300)
-                    g = 250;
-                Scalar color = new Scalar(r, g, b);
-                Imgproc.line(resultMat, lineStart, lineEnd, color, 3);
-            }
+            int r = (255 + i * 10) % 256;
+            int g = (0 + i * 20) % 256;
+            int b = (0 + i * 70) % 256;
+            if (r + g + b < 300)
+                g = 250;
+            Scalar color = new Scalar(r, g, b);
+            Imgproc.line(resultMat, lineStart, lineEnd, color, 3);
+        }
 //        }
         return resultMat;
     }
@@ -256,14 +260,14 @@ public class ImageSupport {
         //end tmp
 
         ListIterator<LineFunction> iterator1 = fzs.listIterator();
-        while(iterator1.hasNext()){
+        while (iterator1.hasNext()) {
             LineFunction fz1 = iterator1.next();
 
             ListIterator<LineFunction> iterator2 = fzs.listIterator();
-            while(iterator2.hasNext()) {
+            while (iterator2.hasNext()) {
                 LineFunction fz2 = iterator2.next();
 
-                if(fz1.equals(fz2))
+                if (fz1.equals(fz2))
                     continue;
 
                 if (similarNearSegment(fz1, fz2)) {
@@ -276,14 +280,14 @@ public class ImageSupport {
             }
         }
 
-        Mat newLines = new Mat(fzs.size(),1, CvType.CV_32SC4);
+        Mat newLines = new Mat(fzs.size(), 1, CvType.CV_32SC4);
         for (int i = 0; i < fzs.size(); i++) {
             double[] line = new double[4];
             line[0] = fzs.get(i).xStart;
             line[1] = fzs.get(i).yStart;
             line[2] = fzs.get(i).xEnd;
             line[3] = fzs.get(i).yEnd;
-            newLines.put(i,0, line);
+            newLines.put(i, 0, line);
         }
 
         return newLines;
@@ -345,46 +349,46 @@ public class ImageSupport {
     }
 
     private void setUnionLine(LineFunction f1, LineFunction f2) {
-        if(f1.topTo(MID_POINT)) {
+        if (f1.topTo(MID_POINT)) {
             LineFunction topSegment = topSegment(f1, f2);
             double ySx = topSegment.computeY(xMin(f1, f2));
             double yDx = topSegment.computeY(xMax(f1, f2));
             double xSx = topSegment.computeX(ySx);
             double xDx = topSegment.computeX(yDx);
-            if (Double.isNaN(xSx) || Double.isNaN(xDx) ) {
+            if (Double.isNaN(xSx) || Double.isNaN(xDx)) {
                 xSx = xMin(f1, f2);
                 xDx = xMax(f1, f2);
             }
             f1.reload(xSx, ySx, xDx, yDx);
-        }else if(f1.leftTo(MID_POINT)) {
+        } else if (f1.leftTo(MID_POINT)) {
             LineFunction leftSegment = leftSegment(f1, f2);
             double xTop = leftSegment.computeX(yMin(f1, f2));
             double xBottom = leftSegment.computeX(yMax(f1, f2));
             double yTop = leftSegment.computeY(xTop);
             double yBottom = leftSegment.computeY(xBottom);
-            if (Double.isNaN(yTop) || Double.isNaN(yBottom) ) {
+            if (Double.isNaN(yTop) || Double.isNaN(yBottom)) {
                 yTop = yMin(f1, f2);
                 yBottom = yMax(f1, f2);
             }
             f1.reload(xTop, yTop, xBottom, yBottom);
-        }else if(f1.bottomTo(MID_POINT)) {
+        } else if (f1.bottomTo(MID_POINT)) {
             LineFunction bottomSegment = bottomSegment(f1, f2);
             double ySx = bottomSegment.computeY(xMin(f1, f2));
             double yDx = bottomSegment.computeY(xMax(f1, f2));
             double xSx = bottomSegment.computeX(ySx);
             double xDx = bottomSegment.computeX(yDx);
-            if (Double.isNaN(xSx) || Double.isNaN(xDx) ) {
+            if (Double.isNaN(xSx) || Double.isNaN(xDx)) {
                 xSx = xMin(f1, f2);
                 xDx = xMax(f1, f2);
             }
             f1.reload(xSx, ySx, xDx, yDx);
-        }else if(f1.rightTo(MID_POINT)) {
+        } else if (f1.rightTo(MID_POINT)) {
             LineFunction rightSegment = rightSegment(f1, f2);
             double xTop = rightSegment.computeX(yMin(f1, f2));
             double xBottom = rightSegment.computeX(yMax(f1, f2));
             double yTop = rightSegment.computeY(xTop);
             double yBottom = rightSegment.computeY(xBottom);
-            if (Double.isNaN(yTop) || Double.isNaN(yBottom) ) {
+            if (Double.isNaN(yTop) || Double.isNaN(yBottom)) {
                 yTop = yMin(f1, f2);
                 yBottom = yMax(f1, f2);
             }
@@ -392,7 +396,6 @@ public class ImageSupport {
         }
 //        leftTopPoint(f1,f2);
 //        leftBottomPoint(f1,f2);
-
 
 
 //        double xSx, ySx;
@@ -439,6 +442,7 @@ public class ImageSupport {
         else
             return f2;
     }
+
     private LineFunction rightSegment(LineFunction f1, LineFunction f2) {
         if ((f1.xStart + f1.xEnd) > (f2.xStart + f2.xEnd))
             return f1;
@@ -451,7 +455,7 @@ public class ImageSupport {
     }
 
     private double max(double d1, double d2, double d3, double d4) {
-        return Math.max(Math.max(d1,d2), Math.max(d3,d4));
+        return Math.max(Math.max(d1, d2), Math.max(d3, d4));
     }
 
     private double xMin(LineFunction f1, LineFunction f2) {
@@ -459,12 +463,13 @@ public class ImageSupport {
     }
 
     private double min(double d1, double d2, double d3, double d4) {
-        return Math.min(Math.min(d1,d2), Math.min(d3,d4));
+        return Math.min(Math.min(d1, d2), Math.min(d3, d4));
     }
 
     private double yMin(LineFunction f1, LineFunction f2) {
         return min(f1.yStart, f1.yEnd, f2.yStart, f2.yEnd);
     }
+
     private double yMax(LineFunction f1, LineFunction f2) {
         return max(f1.yStart, f1.yEnd, f2.yStart, f2.yEnd);
     }
@@ -475,6 +480,7 @@ public class ImageSupport {
         else
             return f2;
     }
+
     private LineFunction bottomSegment(LineFunction f1, LineFunction f2) {
         if ((f1.yStart + f1.yEnd) > (f2.yStart + f2.yEnd))
             return f1;
@@ -485,6 +491,7 @@ public class ImageSupport {
 
     /**
      * Verifica se due rette sono vicine l'una all'altra
+     *
      * @param f1
      * @param f2
      * @return
@@ -503,7 +510,7 @@ public class ImageSupport {
         return atanF1 > atanF2 - SLOPE_MARGIN && atanF1 < atanF2 + SLOPE_MARGIN;
     }
 
-    public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes, double confidenceThreshold) {
+    public Mat drawBoxes(Mat image, List<Classifier.Recognition> boxes) {
         Mat boxesImage = new Mat();
         image.copyTo(boxesImage);
         Scalar color;
@@ -511,7 +518,7 @@ public class ImageSupport {
 
         for (Classifier.Recognition box : boxes) {
             Log.i(TAG, String.valueOf(box));
-            if (box.getConfidence() > confidenceThreshold) {
+            if (box.getTitle().equals("person") && box.getConfidence() > CONFIDENCE_THRESHOLD) {
                 color = colors.get(box.getTitle());
 
                 org.opencv.core.Point pt1 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
@@ -521,8 +528,8 @@ public class ImageSupport {
                 org.opencv.core.Point pt4 = new org.opencv.core.Point(Math.min(box.getLocation().right, box.getLocation().left + (box.getTitle().length() * 13)) * widthRatio, (box.getLocation().top + 11) * heightRatio);
                 Imgproc.rectangle(boxesImage, pt3, pt4, color, FILLED);
 
-                pt1.set(new double[] {pt1.x + 2*heightRatio, (pt1.y + 10*heightRatio)});
-                Imgproc.putText(boxesImage, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (isLight(color)?BLACK:WHITE), (int) (1 * heightRatio));
+                pt1.set(new double[]{pt1.x + 2 * heightRatio, (pt1.y + 10 * heightRatio)});
+                Imgproc.putText(boxesImage, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (isLight(color) ? BLACK : WHITE), (int) (1 * heightRatio));
             }
         }
 
@@ -533,8 +540,8 @@ public class ImageSupport {
         double r = color.val[0];
         double g = color.val[1];
         double b = color.val[2];
-        double sum = r+g+b;
-        return r + g > 210*2 ||  sum > (225*3);
+        double sum = r + g + b;
+        return r + g > 210 * 2 || sum > (225 * 3);
     }
 
     public Mat resizeForYolo(Mat mat, int yoloSize) {
@@ -559,12 +566,12 @@ public class ImageSupport {
     private List<org.opencv.core.Point> reorderCorner(List<org.opencv.core.Point> corners) {
         List<org.opencv.core.Point> newCorners = new ArrayList<>();
 
-        org.opencv.core.Point rightBottom = new org.opencv.core.Point(screenWidth -1, screenHeight -1);
+        org.opencv.core.Point rightBottom = new org.opencv.core.Point(screenWidth - 1, screenHeight - 1);
         double min = Double.MAX_VALUE;
         int idxBottomRight = -1;
         for (int i = 0; i < corners.size(); i++) {
             double d = GeoUtils.squarePointsDistance(corners.get(i), rightBottom);
-            if (d < min){
+            if (d < min) {
                 min = d;
                 idxBottomRight = i;
             }
@@ -575,9 +582,9 @@ public class ImageSupport {
         double bestRight = Double.MIN_VALUE;
         int idxBestRight = -1;
         for (int i = 0; i < corners.size(); i++) {
-            if (i != idxBottomRight){
+            if (i != idxBottomRight) {
                 double x = corners.get(i).x;
-                if (x > bestRight){
+                if (x > bestRight) {
                     bestRight = x;
                     idxBestRight = i;
                 }
@@ -589,9 +596,9 @@ public class ImageSupport {
         double bestTop = Double.MAX_VALUE;
         int idxBestTop = -1;
         for (int i = 0; i < corners.size(); i++) {
-            if (i != idxBottomRight && i != idxBestRight){
+            if (i != idxBottomRight && i != idxBestRight) {
                 double y = corners.get(i).y;
-                if (y < bestTop){
+                if (y < bestTop) {
                     bestTop = y;
                     idxBestTop = i;
                 }
@@ -602,7 +609,7 @@ public class ImageSupport {
 
         int idxBestLeftBottom = -1;
         for (int i = 0; i < corners.size(); i++) {
-            if (i != idxBottomRight && i != idxBestRight && i != idxBestTop){
+            if (i != idxBottomRight && i != idxBestRight && i != idxBestTop) {
                 idxBestLeftBottom = i;
                 break;
             }
@@ -611,8 +618,6 @@ public class ImageSupport {
         newCorners.add(fourth);
 
         return newCorners;
-
-
 
 
 //        for (int i = 0; i < corners.size(); i++) {
@@ -725,11 +730,11 @@ public class ImageSupport {
     }
 
     private Scalar majorLimit(Scalar color) {
-        return new Scalar(color.val[0]+ROUND,color.val[1]+ROUND,color.val[2]+ROUND);
+        return new Scalar(color.val[0] + ROUND, color.val[1] + ROUND, color.val[2] + ROUND);
     }
 
     private Scalar minorLimit(Scalar color) {
-        return new Scalar(color.val[0]-ROUND,color.val[1]-ROUND,color.val[2]-ROUND);
+        return new Scalar(color.val[0] - ROUND, color.val[1] - ROUND, color.val[2] - ROUND);
     }
 
     public List<org.opencv.core.Point> findCourtExtremesFromRigthView(Mat lines) throws AppException {
@@ -737,19 +742,17 @@ public class ImageSupport {
         lines = mergeNearParallelLines(lines);
         List<LineFunction> fzs = matToLineFunction(lines);
 
-        Log.d(TAG, "number of lines : "  + fzs.size());
+        Log.d(TAG, "number of lines : " + fzs.size());
 
         LineFunction topBottomRightLine = getTopBottomRightLine(fzs);
 
         List<org.opencv.core.Point> intersections = new ArrayList<>();
 
 
-
         LineIntersection[] bottomLinesIntersection = getBottomRightLineIntersections(fzs, topBottomRightLine, topBottomRightLine.getExtremePointFarFromOrigin());
         for (int i = 0; i < bottomLinesIntersection.length; i++) {
             intersections.add(bottomLinesIntersection[i].getIntersection());
         }
-
 
 
 //        List<org.opencv.core.Point> intersections = new ArrayList<>();
@@ -836,10 +839,10 @@ public class ImageSupport {
             LineFunction fi = fzs.get(i);
             if (fBase != fi) {
                 org.opencv.core.Point intersection = fBase.intersection(fi);
-                if (intersection != null){
-                    if (fBase.segmentContainPoint(intersection) && fi.segmentContainPoint(intersection)){
+                if (intersection != null) {
+                    if (fBase.segmentContainPoint(intersection) && fi.segmentContainPoint(intersection)) {
                         double dist = distanceSquare(intersection, endPoint);
-                        if (dist < minDistance){
+                        if (dist < minDistance) {
                             secondMinDistance = minDistance;
                             secondMinIntersectionLineIdx = minIntersectionLineIdx;
                             secondMinIntersection = minIntersection;
@@ -848,7 +851,7 @@ public class ImageSupport {
                             minIntersectionLineIdx = i;
                             minIntersection = intersection;
 
-                        } else if ( dist < secondMinDistance){
+                        } else if (dist < secondMinDistance) {
                             secondMinDistance = dist;
                             secondMinIntersectionLineIdx = i;
                             secondMinIntersection = intersection;
@@ -858,8 +861,8 @@ public class ImageSupport {
             }
         }
 
-        if(minIntersectionLineIdx == -1 || secondMinIntersectionLineIdx == -1)
-            throw new AppException("Impossibile individuare automaticamente le linee del campo");
+        if (minIntersectionLineIdx == -1 || secondMinIntersectionLineIdx == -1)
+            throw new AppException("Volleybal court lines cannot be automatically detected");
 
         LineIntersection lineIntersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
         LineIntersection lineIntersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);
@@ -891,8 +894,8 @@ public class ImageSupport {
             if (intersection.y > max)
                 minIdx = i;
         }
-        if(minIdx == -1)
-            throw new AppException("Impossibile individuare automaticamente le linee del campo");
+        if (minIdx == -1)
+            throw new AppException(activity.getString(R.string.lines_not_detected));
 
         LineFunction lineFunction3 = conjunctionLines.get(minIdx);
         org.opencv.core.Point intersection3 = lineFunction3.intersection(f1);
@@ -955,27 +958,78 @@ public class ImageSupport {
     }
 
 
-    public void digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions) {
+    public Mat digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions) {
+
         Mat correctedImage = projectOnHalfCourt(corners, sampledImage);
 
-        for (Classifier.Recognition box : recognitions) {
-            Log.i(TAG, String.valueOf(box));
-            if (box.getConfidence() > CONFIDENCE_THRESHOLD) {
-                org.opencv.core.Point bottomLeft = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().bottom * heightRatio);
-                org.opencv.core.Point bottomRight = new org.opencv.core.Point(box.getLocation().right * widthRatio, box.getLocation().bottom * heightRatio);
-                LineFunction baseLine = new LineFunction(new double[]{bottomLeft.x, bottomLeft.y, bottomRight.x, bottomRight.y});
+        int maxSize = Math.min(screenHeight, screenWidth);
+        corners = reorderCorner(corners);
+        Mat projectiveMat = courtProjectiveMat(corners, maxSize);
 
+        int counter = 0;
+        Mat retMat = sampledImage.clone();
+        for (Classifier.Recognition box : recognitions) {
+            Log.i(TAG, "orderd box --> " + String.valueOf(box));
+            if (box.getTitle().equals("person") && box.getConfidence() > CONFIDENCE_THRESHOLD) {
+
+                org.opencv.core.Point pt1 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
+                org.opencv.core.Point pt2 = new org.opencv.core.Point(box.getLocation().right * widthRatio, box.getLocation().bottom * heightRatio);
+                Imgproc.rectangle(retMat, pt1, pt2, WHITE, 3);
 
 
                 org.opencv.core.Point pt3 = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().top * heightRatio);
                 org.opencv.core.Point pt4 = new org.opencv.core.Point(Math.min(box.getLocation().right, box.getLocation().left + (box.getTitle().length() * 13)) * widthRatio, (box.getLocation().top + 11) * heightRatio);
-                Imgproc.rectangle(boxesImage, pt3, pt4, color, FILLED);
+                Imgproc.rectangle(retMat, pt3, pt4, WHITE, FILLED);
+
 
                 pt1.set(new double[] {pt1.x + 2*heightRatio, (pt1.y + 10*heightRatio)});
-                Imgproc.putText(boxesImage, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (isLight(color)?BLACK:WHITE), (int) (1 * heightRatio));
+                Imgproc.putText(retMat, box.getTitle(), pt1, Core.FONT_HERSHEY_SIMPLEX, 0.4 * heightRatio, (BLACK), (int) (1 * heightRatio));
+
+
+                org.opencv.core.Point bottomLeft = new org.opencv.core.Point(box.getLocation().left * widthRatio, box.getLocation().bottom * heightRatio);
+                org.opencv.core.Point bottomRight = new org.opencv.core.Point(box.getLocation().right * widthRatio, box.getLocation().bottom * heightRatio);
+                LineFunction baseLine = new LineFunction(new double[]{bottomLeft.x, bottomLeft.y, bottomRight.x, bottomRight.y});
+
+                Imgproc.line(retMat, bottomLeft, bottomRight, BLACK, 3);
+
+                Mat p = baseLine.midPointInHomogeneousCoord();
+                Mat mul = new Mat(3,1,CvType.CV_64FC1);
+                Core.gemm(projectiveMat, p, 1.0f, Mat.zeros(3, 1, CvType.CV_64FC1 ), 1.0f, mul, 0);
+                //Core.multiply(projectiveMat, p, mul);
+
+
+                double x = mul.get(0, 0)[0] / mul.get(2, 0)[0];
+                double y = mul.get(1, 0)[0] / mul.get(2, 0)[0];
+                double z = mul.get(2, 0)[0] / mul.get(2, 0)[0];
+
+
+                //Core.gemm(mul, , 1 / p.get(2,0)[0], null, 0, mul, 0);
+                //Core.multiply(mul, new Scalar(1 / p.get(2,0)[0]), dest);
+                Log.d(TAG, "x => " + x);
+                Log.d(TAG, "y => " + y);
+                Log.d(TAG, "z => " + z);
+
+
+                if( x > 0 && x < correctedImage.cols() && y > 0 && y < correctedImage.rows()) {
+                    Imgproc.circle(correctedImage, new org.opencv.core.Point(x, y), 40, new Scalar(255, 153, 0), 5);
+                    counter++;
+                    if (counter == 6)
+                        break;
+                }
+
+
+
+                //Imgproc.getPerspectiveTransform()
+//                Mat correctedImage = new Mat(maxSize, maxSize, 1);
+                //Imgproc.warpPerspective(sampledImage, correctedImage, projectiveMat, correctedImage.size());
             }
         }
+        return correctedImage;
+    }
 
-
+    public Mat flip(Mat image) {
+        Mat retMat = new Mat();
+        Core.flip(image, retMat, 1 );
+        return retMat;
     }
 }

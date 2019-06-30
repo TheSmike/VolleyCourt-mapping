@@ -1,6 +1,7 @@
 package it.scarpentim.volleycourtmapping.classification;
 
 import android.app.Activity;
+import android.util.Log;
 
 import java.io.IOException;
 
@@ -12,6 +13,7 @@ public class ClassifierFactory {
     private static final int[] TINY_YOLO_BLOCK_SIZE = {32, 16};
 
     private static final String TINY_MODEL_FILE = "ultimate_yolov3-tiny";
+    private static final String TAG = "volleyCourt";
 
     public static Classifier getYolov3TinyInstance(Activity activity) {
             try {
@@ -45,9 +47,11 @@ public class ClassifierFactory {
                     INPUT_LAYER_NAME,
                     OUTPUT_LAYER_NAME,
                     YOLO_BLOCK_SIZE,
-                    0);
+                    1);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e(TAG, e.getMessage() + " -- " + String.valueOf(e));
             throw new RuntimeException("classifier init problem", e);
         }
     }

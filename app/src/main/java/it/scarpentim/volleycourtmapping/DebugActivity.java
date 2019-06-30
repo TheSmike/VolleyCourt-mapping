@@ -5,13 +5,15 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.constraint.ConstraintLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,32 +23,34 @@ import com.skydoves.colorpickerpreference.ColorPickerDialog;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
-import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.File;
 import java.util.List;
 
-import it.scarpentim.volleycourtmapping.classification.Classifier;
-import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
 import it.scarpentim.volleycourtmapping.exception.AppException;
-import it.scarpentim.volleycourtmapping.image.ImageSupport;
 
 public class DebugActivity extends VolleyAbstractActivity {
 
-    private ImageSupport imageSupport = null;
     VolleySeekBarHandler seekBarHandler;
     OnVolleyTouchHandler onTouchListener;
 
-    private Mat sampledImage = null;
     private Mat drawedImage;
-    private boolean isPerspectiveApplied = false;
+
+    TextView tvDebugMsg;
+    RadioButton rbLeft;
+    RadioButton rbRight;
+
+    private State state = State.START;
 
     private List<Point> corners = null;
 
+    public void radioChange(View view) {
+        state = State.SIDE_SELECTED;
+        setViewState();
+    }
 
     private enum ShowType{
         IMAGE,
@@ -55,22 +59,20 @@ public class DebugActivity extends VolleyAbstractActivity {
         COLOR_TH,
     }
 
-    VolleyParams volleyParams;
-
     private ShowType show = ShowType.IMAGE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_debug);
-        volleyParams = new VolleyParams(this);
         seekBarHandler = new VolleySeekBarHandler(this, volleyParams);
-        selectedImagePath = volleyParams.getLastImage();
         onTouchListener = new OnVolleyTouchHandler(this);
         findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
-        classifier = ClassifierFactory.getYolov3Instance(this);
-        imageSupport = new ImageSupport(this, classifier.getLabels());
-
+        tvDebugMsg = findViewById(R.id.tvDebugMsg);
+        rbLeft = findViewById(R.id.radio_left);
+        rbRight = findViewById(R.id.radio_right);
+        rbLeft.setChecked(false);
+        rbRight.setChecked(false);
 //        createColorPicker();
     }
 
@@ -101,12 +103,6 @@ public class DebugActivity extends VolleyAbstractActivity {
     }
 
     @Override
-    public void onResume(){
-        super.onResume();
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,this, mLoaderCallback);
-    }
-
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.debugmenu, menu);
         return true;
@@ -116,44 +112,53 @@ public class DebugActivity extends VolleyAbstractActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         switch (id){
+            case R.id.action_goBack:
+                finish();
+                break;
             case R.id.action_openGallery:
+                state = State.START;
                 show = ShowType.IMAGE;
                 PermissionSupport.validateReadStoragePermission(this);
                 Intent intent = new Intent();
                 intent.setType("image/*");
                 intent.setAction(Intent.ACTION_PICK);
                 startActivityForResult(Intent.createChooser(intent,"Select image"), SELECT_PICTURE);
-                return true;
+                break;
 
             case R.id.action_Canny:
                 if (checkImageLoaded()){
                     show = ShowType.CANNY;
                     showImage();
-                    return true;
+                    state = State.IMAGE_PROCESSING;
                 }
+                break;
 
             case R.id.action_Hough:
                 if (checkImageLoaded()){
                     show = ShowType.HOUGH;
                     showImage();
-                    return true;
+                    state = State.IMAGE_PROCESSING;
                 }
+                break;
 
             case R.id.action_Color_slicing:
                 if (checkImageLoaded()){
                     show = ShowType.COLOR_TH;
                     showImage();
-                    return true;
+                    state = State.IMAGE_PROCESSING;
                 }
-                case R.id.action_resetImage:
-                    if (checkImageLoaded()){
-                        show = ShowType.IMAGE;
-                        showImage();
-                        return true;
-                    }
+                break;
 
-
+            case R.id.action_resetImage:
+                if (checkImageLoaded()){
+                    show = ShowType.IMAGE;
+                    showImage();
+                    state = State.IMAGE_PROCESSING;
+                }
+                break;
         }
+
+        setViewState();
         return super.onOptionsItemSelected(item);
 
     }
@@ -166,53 +171,50 @@ public class DebugActivity extends VolleyAbstractActivity {
             if (requestCode == SELECT_PICTURE) {
                 Uri selectedImageUri = data.getData();
                 selectedImagePath = imageSupport.getPath(selectedImageUri);
-
                 volleyParams.setLastImage(selectedImagePath);
                 loadImageFromPath();
             }
         }
     }
 
-    private void loadImageFromPath() {
-        if (selectedImagePath != null) {
-            Log.i(TAG, "selectedImagePath: " + selectedImagePath);
-            File file = new File(selectedImagePath);
-            if(file.exists()) {
-                sampledImage = imageSupport.loadImage(selectedImagePath);
-                isPerspectiveApplied = false;
-                onTouchListener.reset();
-                onTouchListener.setImage(sampledImage);
-                Bitmap bitmap = imageSupport.matToBitmap(imageSupport.toPhoneDim(sampledImage));
-                ImageView iv = findViewById(R.id.ivPreview);
-                iv.setImageBitmap(bitmap);
-            }
+    protected boolean loadImageFromPath() {
+        boolean loaded = super.loadImageFromPath();
+        if(loaded){
+            state = State.IMAGE_LOADED;
+            onTouchListener.setImage(sampledImage);
+            setViewState();
         }
+        return loaded;
     }
 
     @Override
     public void showImage() {
         if (!checkImageLoaded()) return;
         Bitmap bitmap;
+        Mat image;
 
         switch (show) {
             case IMAGE:
                 bitmap = imageSupport.matToBitmap(sampledImage);
                 break;
             case COLOR_TH:
-                Mat maskedSMat = imageSupport.colorMask(sampledImage);
-                bitmap = imageSupport.matToBitmap(maskedSMat);
+                image = flipIfNeeded(sampledImage);
+                Mat maskedSMat = imageSupport.colorMask(image);
+                bitmap = imageSupport.matToBitmap(flipIfNeeded(maskedSMat));
                 break;
 
             case CANNY:
-                Mat maskedCMat = imageSupport.colorMask(sampledImage);
+                image = flipIfNeeded(sampledImage);
+                Mat maskedCMat = imageSupport.colorMask(image);
                 Mat cannyMat = imageSupport.edgeDetector(maskedCMat, volleyParams);
-                bitmap = imageSupport.matToBitmap(cannyMat);
+                bitmap = imageSupport.matToBitmap(flipIfNeeded(cannyMat));
                 break;
             case HOUGH:
-                Mat maskedMat = imageSupport.colorMask(sampledImage);
+                image = flipIfNeeded(sampledImage);
+                Mat maskedMat = imageSupport.colorMask(image);
                 Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
                 drawedImage = imageSupport.drawHoughLines(maskedMat, houghMat);
-                bitmap = imageSupport.matToBitmap(drawedImage);
+                bitmap = imageSupport.matToBitmap(flipIfNeeded(drawedImage));
 
 //                Mat houghMat = imageSupport.houghTransformWithColorFilter(sampledImage, seekBarHandler);
 //                drawedImage = imageSupport.drawHoughLines(sampledImage, houghMat);
@@ -227,6 +229,15 @@ public class DebugActivity extends VolleyAbstractActivity {
         iv.setImageBitmap(bitmap);
     }
 
+    private Mat flipIfNeeded(Mat sampledImage) {
+        Mat image;
+        if (isLeft())
+            image = imageSupport.flip(sampledImage);
+        else
+            image = sampledImage;
+        return image;
+    }
+
 
     public void showImage(Mat image) {
         if (!checkImageLoaded()) return;
@@ -238,7 +249,7 @@ public class DebugActivity extends VolleyAbstractActivity {
 
     private boolean checkImageLoaded() {
         if (sampledImage == null){
-            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_image_uploaded), Toast.LENGTH_SHORT).show();
             return false;
         }
         return true;
@@ -259,72 +270,7 @@ public class DebugActivity extends VolleyAbstractActivity {
         }
     };
 
-    public void findCorners(View view) {
-        if (sampledImage == null) {
-            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
-        Mat maskedMat = imageSupport.colorMask(sampledImage);
-        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
-
-
-        List<Point> corners = null;
-        try {
-            corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
-        } catch (AppException e) {
-            toast(e.getLocalizedMessage() + ". Seleziona manualmente i punti");
-            onTouchListener.enable();
-            return;
-        }
-
-        Mat drawedMat =  sampledImage.clone();
-        for (Point corner : corners) {
-            Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
-        }
-        showImage(drawedMat);
-
-        this.corners = corners;
-
-        //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
-        //showImage(correctedImage);
-    }
-
-    public void transformImage(View view) {
-        if (isPerspectiveApplied) {
-            isPerspectiveApplied = false;
-            ((TextView)view).setText(R.string.transform);
-            showImage(sampledImage);
-
-        } else {
-
-            if (onTouchListener.isEnable()) {
-                corners = onTouchListener.getCorners();
-                if (corners.size() != 4) {
-                    toast("Selezionare 4 vertici prima di applicare la trasformazione");
-                } else {
-                    isPerspectiveApplied = true;
-                    ((TextView)view).setText(R.string.goback);
-
-                    Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
-                    showImage(correctedImage);
-                }
-            }else {
-
-                if (corners == null) {
-                    toast("Il processo per individuare i 4 vertici non è stato eseguito, premere il bottone Corners");
-                } else if (corners.size() != 4) {
-                    toast("Il processo non è riuscito ad individuare i 4 vertici in modo univoco!");
-                } else {
-                    isPerspectiveApplied = true;
-                    ((TextView) view).setText(R.string.goback);
-
-                    Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
-                    showImage(correctedImage);
-                }
-            }
-        }
-    }
 
     private void toast(String msg) {
         Context context = getApplicationContext();
@@ -333,51 +279,277 @@ public class DebugActivity extends VolleyAbstractActivity {
         toast.show();
     }
 
-    public void manualTransformImage(View view) {
-        if (isPerspectiveApplied) {
-            isPerspectiveApplied = false;
-            onTouchListener.reset();
-            onTouchListener.setImage(sampledImage);
-            showImage(sampledImage);
-        } else {
-            if (sampledImage == null) {
-                toast("Nessuna immagine caricata");
-                return;
-            }
-            if (onTouchListener.getCorners().size() != 4) {
-                toast("Bisogna selezionare 4 vertici!");
-            } else {
-                isPerspectiveApplied = true;
+    @Override
+    protected void showMessage(int stringId) {
+        tvDebugMsg.setText(stringId);
+    }
 
-                Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
+//    public void manualTransformImage(View view) {
+//        if (isPerspectiveApplied) {
+//            isPerspectiveApplied = false;
+//            onTouchListener.reset();
+//            onTouchListener.setImage(sampledImage);
+//            showImage(sampledImage);
+//        } else {
+//            if (sampledImage == null) {
+//                toast(getString(R.string.no_image_uploaded));
+//                return;
+//            }
+//            if (onTouchListener.getCorners().size() != 4) {
+//                toast("You must select 4 vertices!");
+//            } else {
+//                isPerspectiveApplied = true;
+//
+//                Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
+//                showImage(correctedImage);
+//            }
+//        }
+//    }
+
+    public void findDebugCorners(View view) {
+        //resetPerspectiveApplied();
+        //resetClassificationMsg();
+        state = State.CORNERS;
+        if (sampledImage == null) {
+            Toast.makeText(this, R.string.no_image_uploaded, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Mat image = flipIfNeeded(sampledImage);
+        Mat maskedMat = imageSupport.colorMask(image);
+        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
+
+
+        List<Point> corners = null;
+        try {
+            corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+        } catch (AppException e) {
+            toast(e.getLocalizedMessage() + ".\n" + getString(R.string.try_manually));
+            onTouchListener.enable();
+            state = State.CORNERS_SELECTION;
+            setViewState();
+            return;
+        }
+
+        Mat drawedMat =  image.clone();
+        for (Point corner : corners) {
+            Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
+        }
+        showImage(flipIfNeeded(drawedMat));
+
+        this.corners = corners;
+        setViewState();
+        //Mat correctedImage = imageSupport.projectOnHalfCourt(onTouchListener.getCorners(), sampledImage);
+        //showImage(correctedImage);
+    }
+
+    public void transformImage(View view) {
+
+        if (state == State.TRANSFORM) {
+            state = State.SIDE_SELECTED;
+            showImage(sampledImage);
+
+        } else if (state == State.CORNERS){
+            if (corners.size() != 4) {
+                toast("The process failed to uniquely identify the 4 vertices!");
+            } else {
+                state = State.TRANSFORM;
+                ((TextView) view).setText(R.string.goback);
+                Mat image = flipIfNeeded(sampledImage);
+                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, image);
+                correctedImage = flipIfNeeded(correctedImage);
                 showImage(correctedImage);
             }
+        }else if (state == State.CORNERS_SELECTION){
+            corners = onTouchListener.getCorners();
+            if (corners.size() != 4) {
+                toast("Select 4 vertices before applying the transformation");
+            } else {
+                state = State.TRANSFORM;
+                Mat image = flipIfNeeded(sampledImage);
+                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, image);
+                showImage(flipIfNeeded(correctedImage));
+            }
+        }else {
+            toast("The process to identify the 4 vertices has not been executed, press the Corners button before");
+            return;
         }
+
+        setViewState();
     }
 
     public void classifyImage(View view){
         if (sampledImage == null) {
-            Toast.makeText(this, "Nessuna immagine caricata", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_image_uploaded), Toast.LENGTH_SHORT).show();
             return;
         }
-        new ComputeTask().execute(sampledImage);
+        state = State.CLASSIFY_START;
+        setViewState();
+        super.executeAsyncClassification(sampledImage);
     }
 
-    private class ComputeTask extends AsyncTask<Mat, String, List<Classifier.Recognition>>{
-
-        Mat tmpMat;
-        @Override
-        protected List<Classifier.Recognition> doInBackground(Mat... mats) {
-            Mat mat = imageSupport.resizeForYolo(mats[0], classifier.getImageSize());
-            List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(mat));
-            tmpMat = imageSupport.drawBoxes(mats[0], recognitions, 0.2);
-            return recognitions;
-        }
-
-        @Override
-        protected void onPostExecute(List<Classifier.Recognition> mat) {
-            super.onPostExecute(mat);
-            showImage(tmpMat);
-        }
+    @Override
+    protected void onPostExecuteClassifierTask() {
+        state = State.CLASSIFY_END;
+        setViewState();
     }
+
+    public void findPositions(View view) {
+        if(state == State.POSITIONS_START){
+            return;
+        }else if (state == State.POSITIONS_END){
+            state = State.SIDE_SELECTED;
+            show = ShowType.IMAGE;
+            showImage();
+        }else {
+            state = State.POSITIONS_START;
+            DigitalizationTask computeTask = new DigitalizationTask(isLeft());
+            computeTask.execute();
+        }
+        setViewState();
+
+    }
+
+    @Override
+    protected void onPostExecuteDigitalizationTask() {
+        super.onPostExecuteDigitalizationTask();
+        state = State.POSITIONS_END;
+        setViewState();
+    }
+
+    private boolean isLeft() {
+        return rbLeft.isChecked();
+    }
+
+    private void setViewState(){
+
+        Button btnTransform = findViewById(R.id.btn_transform);
+        Button btnPositions = findViewById(R.id.btn_positions);
+        Button btnClassify = findViewById(R.id.btn_classify);
+        Button btnCorners = findViewById(R.id.btn_corners);
+
+        TextView msgView = findViewById(R.id.tvDebugMsg);
+
+        switch (state){
+            case START :
+            case IMAGE_LOADED:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                msgView.setText(R.string.empty);
+                onTouchListener.reset();
+                corners = null;
+                btnTransform.setEnabled(false);
+                btnPositions.setEnabled(false);
+                btnClassify.setEnabled(false);
+                btnCorners.setEnabled(false);
+                rbLeft.setChecked(false);
+                rbRight.setChecked(false);
+                break;
+            case IMAGE_PROCESSING:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                msgView.setText(R.string.empty);
+                onTouchListener.reset();
+                corners = null;
+                break;
+            case SIDE_SELECTED:
+                btnTransform.setEnabled(true);
+                btnPositions.setEnabled(true);
+                btnClassify.setEnabled(true);
+                btnCorners.setEnabled(true);
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                msgView.setText(R.string.empty);
+                onTouchListener.reset();
+                corners = null;
+                break;
+            case CORNERS:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                msgView.setText(R.string.empty);
+                break;
+            case CORNERS_SELECTION:
+                show = ShowType.IMAGE;
+                showImage();
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                msgView.setText(R.string.select_4_corners);
+                break;
+            case TRANSFORM:
+                btnTransform.setText(R.string.goback);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.GONE);
+                msgView.setText(R.string.empty);
+                onTouchListener.reset();
+                corners = null;
+                break;
+            case POSITIONS_START:
+                msgView.setText(R.string.processing);
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.goback);
+                showConfigLayout(View.GONE);
+                onTouchListener.reset();
+                corners = null;
+                break;
+            case POSITIONS_END:
+                msgView.setText(R.string.finished);
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.goback);
+                showConfigLayout(View.GONE);
+                onTouchListener.reset();
+                corners = null;
+                break;
+            case CLASSIFY_START:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                break;
+            case CLASSIFY_END:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
+                showConfigLayout(View.VISIBLE);
+                break;
+        }
+
+    }
+
+    private void showConfigLayout(int visible) {
+        ConstraintLayout configLayout = findViewById(R.id.layout_config);
+        configLayout.setVisibility(visible);
+    }
+
+//    private void resetPerspectiveApplied() {
+//        Button b = findViewById(R.id.btn_positions);
+//        b.setText(R.string.positions);
+//
+//        if (isPerspectiveApplied) {
+//            isPerspectiveApplied = false;
+//            Button btn = findViewById(R.id.btn_transform);
+//            btn.setText(R.string.transform);
+//            showConfigLayout(View.VISIBLE);
+//        }
+//    }
+//    private void resetClassificationMsg() {
+//        TextView msgView = findViewById(R.id.tvDebugMsg);
+//        msgView.setText(R.string.empty);
+//    }
+
+    private enum State {
+        START,
+        SIDE_SELECTED,
+        IMAGE_LOADED,
+        CORNERS,
+        CORNERS_SELECTION,
+        TRANSFORM,
+        CLASSIFY_START,
+        POSITIONS_START,
+        POSITIONS_END,
+        CLASSIFY_END, IMAGE_PROCESSING;
+    }
+
+
 }

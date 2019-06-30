@@ -1,5 +1,7 @@
 package it.scarpentim.volleycourtmapping.geometry;
 
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
 import org.opencv.core.Point;
 
 public class LineFunction {
@@ -249,6 +251,18 @@ public class LineFunction {
 
     public double getSlopeInRadians() {
         return Math.atan(m);
+    }
+
+    public Mat midPointInHomogeneousCoord() {
+        Mat p = new Mat(3,1, CvType.CV_64FC1);
+        double xMid = (xEnd + xStart) / 2;
+        double yMid = (yEnd + yStart) / 2;
+
+        p.put(0,0, xMid);
+        p.put(1,0, yMid);
+        p.put(2,0, 1);
+
+        return p;
     }
 
 

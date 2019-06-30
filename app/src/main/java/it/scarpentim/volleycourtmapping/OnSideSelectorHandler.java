@@ -44,13 +44,16 @@ class OnSideSelectorHandler implements View.OnTouchListener {
             Point corner = new Point(projectedX, projectedY);
 
             Point pt1, pt2, pt3, pt4;
+            boolean leftSide;
             if (corner.x < imageWidth / 2) {
+                leftSide = true;
                 pt1 = new Point(MARGIN + 2, MARGIN + 2);
                 pt2 = new Point(MARGIN + 2, MARGIN + courtSide - 2);
                 pt3 = new Point(MARGIN + courtSide - 2, MARGIN + courtSide - 2);
                 pt4 = new Point(MARGIN + courtSide - 2, MARGIN + 2);
 
             } else {
+                leftSide = false;
                 pt1 = new Point(MARGIN + courtSide + 2, MARGIN + 2);
                 pt2 = new Point(MARGIN + courtSide + 2, MARGIN + courtSide - 2);
                 pt3 = new Point(MARGIN + courtSide + courtSide - 2, MARGIN + courtSide - 2);
@@ -68,7 +71,7 @@ class OnSideSelectorHandler implements View.OnTouchListener {
                 writeDx(-70);
 
             activity.showSideSelector(img);
-            activity.sideSelected();
+            activity.sideSelected(leftSide);
         }
         return false;
     }

@@ -10,23 +10,24 @@ public class VolleyParams {
     public static final String CANNY_MIN_THRES = "cannyMinThres";
     public static final String CANNY_MAX_THRES = "cannyMaxThres";
     public static final String HOUGH_MAX_DISTANCE = "houghMaxDistance";
-    public static final String HOUGH_MINLENGTH = "houghMinlength";
+    public static final String HOUGH_MIN_LENGTH = "houghMinlength";
     public static final String HOUGH_VOTES = "houghVotes";
+    private static final String DEBUG_SIDE_LEFT = "debugSide";
 
     protected static final String LAST_IMAGE = "LAST_IMAGE";
 
     private static final int DEF_CANNY_MIN = 80;
-    private static final int DEF_CANNY_MAX = 100;
+    private static final int DEF_CANNY_MAX = 150;
     private static final int DEF_HOUGH_MAX_DISTANCE = 25;
     private static final int DEF_HOUGH_MIN_LENGTH = 125;
     private static final int DEF_HOUGH_VOTES = 20;
+
 
     private final SharedPreferences sharedPref;
     private final SharedPreferences.Editor editor;
 
     public VolleyParams(Activity activity) {
-
-        sharedPref = activity.getPreferences(Context.MODE_PRIVATE);
+        sharedPref = activity.getSharedPreferences("VOLLEY_APP_PREF", Context.MODE_PRIVATE);
         editor = sharedPref.edit();
 
     }
@@ -48,7 +49,7 @@ public class VolleyParams {
     }
 
     public  int getHoughMinlength(int defaultValue) {
-        return sharedPref.getInt(HOUGH_MINLENGTH, defaultValue);
+        return sharedPref.getInt(HOUGH_MIN_LENGTH, defaultValue);
     }
 
     public int getHoughVotes(int defaultValue) {
@@ -61,6 +62,9 @@ public class VolleyParams {
         return sharedPref.getString(LAST_IMAGE, null);
     }
 
+    public boolean isDebugSideLeft() {
+        return sharedPref.getBoolean(DEBUG_SIDE_LEFT, false);
+    }
 
 
     // setter
@@ -81,17 +85,21 @@ public class VolleyParams {
     }
 
     public void setHoughMinlength(int val) {
-        editor.putInt(LAST_IMAGE, val);
+        editor.putInt(HOUGH_MIN_LENGTH, val);
         editor.commit();
     }
 
     public void setHoughVotes(int val) {
-        editor.putInt(LAST_IMAGE, val);
+        editor.putInt(HOUGH_VOTES, val);
         editor.commit();
     }
 
     public void setLastImage(String val) {
         editor.putString(LAST_IMAGE, val);
+        editor.commit();
+    }
+    public void setDebugSideLeft(boolean val) {
+        editor.putBoolean(DEBUG_SIDE_LEFT, val);
         editor.commit();
     }
 

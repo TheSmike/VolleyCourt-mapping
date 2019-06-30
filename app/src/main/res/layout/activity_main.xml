@@ -26,12 +26,12 @@
         android:layout_marginBottom="8dp"
         android:src="@mipmap/ic_launcher"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvMsg"
+        app:layout_constraintTop_toBottomOf="@+id/tvDebugMsg"
         app:layout_constraintVertical_bias="0.036"
         tools:layout_editor_absoluteX="0dp" />
 
     <TextView
-        android:id="@+id/tvMsg"
+        android:id="@+id/tvDebugMsg"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"

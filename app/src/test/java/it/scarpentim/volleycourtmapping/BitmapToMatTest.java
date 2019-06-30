@@ -1,10 +1,15 @@
 package it.scarpentim.volleycourtmapping;
 
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import org.junit.Test;
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
 
 import static org.junit.Assert.*;
 
@@ -13,7 +18,7 @@ import static org.junit.Assert.*;
  *
  * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
  */
-public class BitmapToMatTest {
+public class BitmapToMatTest extends OpenCVTestInitializer {
 
     private static final int W = 3, H = 3;
 
@@ -60,4 +65,31 @@ public class BitmapToMatTest {
 
         assertEquals(4, 2 + 2);
     }
+
+
+    @Test
+    public void testMultiplication(){
+
+        Mat m = new Mat(3,3, CvType.CV_32F);
+        m.put(0,0, 10.82740443884044);
+        m.put(0,1, -35.056559366336954);
+        m.put(0,2, 10396.351575348615);
+        m.put(1,0, 13.087245088033004);
+        m.put(1,1, 37.01285409511175);
+        m.put(1,2, -21334.85303208853);
+        m.put(2,0, -0.0017975185888991375);
+        m.put(2,1, 0.02438386677330884);
+        m.put(2,2, 1.0);
+
+        Mat p = new Mat(3,1, CvType.CV_32F);
+
+        Mat mul = m.mul(p);
+
+        for (int r = 0; r < mul.rows(); r++) {
+            for (int c = 0; c < mul.rows(); c++) {
+                System.out.println("mul.get(r,c) = " + mul.get(r,c));
+            }
+        }
+    }
+
 }

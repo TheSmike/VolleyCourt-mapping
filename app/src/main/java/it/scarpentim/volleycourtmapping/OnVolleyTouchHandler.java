@@ -17,6 +17,7 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
     List<Point> mCorners;
     private VolleyAbstractActivity activity;
     private boolean enable = false;
+    private Mat originalImage;
 
     public OnVolleyTouchHandler(VolleyAbstractActivity activity) {
         this.activity = activity;
@@ -43,6 +44,7 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
     }
 
     public void setImage(Mat image) {
+        this.originalImage = image;
         this.image = image.clone();
     }
 
@@ -52,6 +54,8 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
 
     public void reset() {
         mCorners.clear();
+        image = originalImage.clone();
+        this.enable = false;
 
     }
 

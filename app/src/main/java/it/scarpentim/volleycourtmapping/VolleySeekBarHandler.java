@@ -53,7 +53,7 @@ public class VolleySeekBarHandler implements SeekBar.OnSeekBarChangeListener {
         switch (seekBar.getId()) {
             case R.id.seekBar_MinThreshCanny:
                 cannyMinThres = progress;
-                volleyParams.setCannyMaxThres(cannyMinThres);
+                volleyParams.setCannyMinThres(cannyMinThres);
                 break;
             case R.id.seekBar_MaxThreshCanny:
                 cannyMaxThres = progress;

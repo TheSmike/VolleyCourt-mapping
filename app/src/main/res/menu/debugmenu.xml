@@ -34,6 +34,14 @@
         app:showAsAction="ifRoom"
         android:enabled="true" />
 
+    <item android:title="@string/action_goBack"
+        android:id="@+id/action_goBack"
+        android:orderInCategory="300"
+        app:showAsAction="ifRoom"
+        android:enabled="true" />
+
+
+
 
 
 </menu>

@@ -21,20 +21,22 @@ import java.util.PriorityQueue;
 public class YoloV3Classifier implements Classifier {
 
     // Only return this many results with at least this confidence.
-    private static final int MAX_RESULTS = 6;
+    private static final int MAX_RESULTS = 15;
 
     private static final int NUM_CLASSES = 80;
 
     private static final int NUM_BOXES_PER_BLOCK = 3 ;
 
-    private final static float OVERLAP_THRESHOLD = 0.5f;
+    private final static float OVERLAP_THRESHOLD = 0.3f;
+    public static final float CONFIDENCE_THRESHOLD = 0.001f;
+
     public static final String FILE_ANDROID_ASSET = "file:///android_asset/";
-    public static final double CONFIDENCE_THRESHOLD = 0.001;
+
 
     private int[] anchors;
     private String[] labels;
 
-    private static final String TAG = "PASM_yolov3";
+    private static final String TAG = "volleyCourt";
 
     // Config values.
     private String inputName;
@@ -127,6 +129,8 @@ public class YoloV3Classifier implements Classifier {
         long startProcessingOut = System.currentTimeMillis();
         final ArrayList<Recognition> recognitions = new ArrayList<>();
         for (int i = 0; i < blockSize.length; i++) {
+            if (i != 1)
+                continue;
 
             // Copy the output Tensor back into the output array.
             Trace.beginSection("fetch i");
@@ -134,7 +138,7 @@ public class YoloV3Classifier implements Classifier {
             int gridHeight = bitmap.getHeight() / blockSize[i];
 
             final float[] output = new float[gridWidth * gridHeight * (NUM_CLASSES + 5) * NUM_BOXES_PER_BLOCK];
-            Log.d(TAG,  String.format("output0 size is --> %d * %d * (%d + 5) * %d = %d", gridWidth, gridHeight, NUM_CLASSES, NUM_BOXES_PER_BLOCK, gridWidth * gridHeight * (NUM_CLASSES + 5) * NUM_BOXES_PER_BLOCK ));
+            //Log.d(TAG,  String.format("output0 size is --> %d * %d * (%d + 5) * %d = %d", gridWidth, gridHeight, NUM_CLASSES, NUM_BOXES_PER_BLOCK, gridWidth * gridHeight * (NUM_CLASSES + 5) * NUM_BOXES_PER_BLOCK ));
             inferenceInterface.fetch(outputNames[i], output);
             Trace.endSection();
 
@@ -214,20 +218,12 @@ public class YoloV3Classifier implements Classifier {
                     for (int c = 0; c < NUM_CLASSES; ++c) {
                         classes[c] = networkOutput[offset + 5 + c]; //percentage of each class
                     }
-                    softmax(classes);
 
-                    for (int c = 0; c < NUM_CLASSES; ++c) {
-                        if (classes[c] > maxClass) {
-                            detectedClass = c;
-                            maxClass = classes[c];
-                        }
-                    }
-
-                    if(detectedClass == 0) {
-                        final float confidenceInClass = maxClass * confidence;
-                        if (confidenceInClass > CONFIDENCE_THRESHOLD) {
-                            Log.v(TAG, String.format("%s (%d) %f %s", labels[detectedClass], detectedClass, confidenceInClass, rect));
-                            pq.add(new Recognition("" + offset, labels[detectedClass], confidenceInClass, rect));
+                    for (int c = 0; c < NUM_CLASSES; c++) {
+                        final float confidenceInClass = classes[c] * confidence;
+                        if (confidence > CONFIDENCE_THRESHOLD) {
+//                            Log.v(TAG, String.format("%s (%d) %f %s", labels[c], c, confidenceInClass, rect));
+                            pq.add(new Recognition("" + offset, labels[c], confidenceInClass, rect));
                         }
                     }
                 }
@@ -275,7 +271,13 @@ public class YoloV3Classifier implements Classifier {
         float int_x1 = Math.min(box1.right, box2.right);
         float int_y1 = Math.min(box1.bottom, box2.bottom);
 
-        float int_area = (int_x1 - int_x0) * (int_y1 - int_y0);
+        float width = int_x1 - int_x0;
+        float height = int_y1 - int_y0;
+
+        if (width < 0 || height < 0)
+            return 0.0;
+
+        float int_area = width * height;
 
         float box1_area = (box1.right - box1.left) * (box1.bottom - box1.top);
         float box2_area = (box2.right - box2.left) * (box2.bottom - box2.top);
@@ -303,7 +305,7 @@ public class YoloV3Classifier implements Classifier {
     }
 
     private static int[] streamToAnchors(InputStream anchorsFile) throws IOException {
-        List<Integer> labels = new ArrayList<>();
+        List<Integer> anchors = new ArrayList<>();
 
         // read it with BufferedReader
         BufferedReader br = new BufferedReader(new InputStreamReader(anchorsFile));
@@ -312,15 +314,15 @@ public class YoloV3Classifier implements Classifier {
         while ((line = br.readLine()) != null) {
             String[] split = line.split(",");
             for (String s : split) {
-                labels.add(Integer.valueOf(s.trim()));
+                anchors.add(Integer.valueOf(s.trim()));
             }
         }
 
         br.close();
 
-        int[] ints = new int[labels.size()];
-        for (int i = 0; i < labels.size(); i++) {
-            ints[i] = labels.get(i);
+        int[] ints = new int[anchors.size()];
+        for (int i = 0; i < anchors.size(); i++) {
+            ints[i] = anchors.get(i);
         }
 
         return ints;
