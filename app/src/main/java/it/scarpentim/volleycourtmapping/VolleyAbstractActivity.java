@@ -201,11 +201,23 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
     private class ClassifierTask extends AsyncTask<Mat, String, List<Classifier.Recognition>>{
 
         Mat tmpMat;
+        private boolean isToFlip;
+
+        public ClassifierTask(boolean isToFlip) {
+            this.isToFlip = isToFlip;
+        }
+
         @Override
         protected List<Classifier.Recognition> doInBackground(Mat... mats) {
-            Mat mat = imageSupport.resizeForYolo(mats[0], classifier.getImageSize());
+            Mat input;
+            if (isToFlip)
+                input = imageSupport.flip(mats[0]);
+            else
+                input = mats[0];
+
+            Mat mat = imageSupport.resizeForYolo(input, classifier.getImageSize());
             List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(mat));
-            tmpMat = imageSupport.drawBoxes(mats[0], recognitions);
+            tmpMat = imageSupport.drawBoxes(input, recognitions);
             return recognitions;
         }
 
@@ -226,8 +238,8 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
         }
     }
 
-    protected void executeAsyncClassification(Mat sampledImage) {
-        new ClassifierTask().execute(sampledImage);
+    protected void executeAsyncClassification(Mat sampledImage, boolean isToFlip) {
+        new ClassifierTask(isToFlip).execute(sampledImage);
     }
 
     protected void onPostExecuteClassifierTask(){

@@ -47,11 +47,6 @@ public class DebugActivity extends VolleyAbstractActivity {
 
     private List<Point> corners = null;
 
-    public void radioChange(View view) {
-        state = State.SIDE_SELECTED;
-        setViewState();
-    }
-
     private enum ShowType{
         IMAGE,
         CANNY,
@@ -110,6 +105,9 @@ public class DebugActivity extends VolleyAbstractActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        if (state.isProcessing())
+            return false;
+
         int id = item.getItemId();
         switch (id){
             case R.id.action_goBack:
@@ -162,8 +160,6 @@ public class DebugActivity extends VolleyAbstractActivity {
         return super.onOptionsItemSelected(item);
 
     }
-
-
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -307,6 +303,8 @@ public class DebugActivity extends VolleyAbstractActivity {
 //    }
 
     public void findDebugCorners(View view) {
+        if (state.isProcessing())
+            return;
         //resetPerspectiveApplied();
         //resetClassificationMsg();
         state = State.CORNERS;
@@ -344,6 +342,8 @@ public class DebugActivity extends VolleyAbstractActivity {
     }
 
     public void transformImage(View view) {
+        if (state.isProcessing())
+            return;
 
         if (state == State.TRANSFORM) {
             state = State.SIDE_SELECTED;
@@ -379,13 +379,16 @@ public class DebugActivity extends VolleyAbstractActivity {
     }
 
     public void classifyImage(View view){
+        if (state.isProcessing())
+            return;
+
         if (sampledImage == null) {
             Toast.makeText(this, getString(R.string.no_image_uploaded), Toast.LENGTH_SHORT).show();
             return;
         }
         state = State.CLASSIFY_START;
         setViewState();
-        super.executeAsyncClassification(sampledImage);
+        super.executeAsyncClassification(sampledImage, isLeft());
     }
 
     @Override
@@ -395,6 +398,9 @@ public class DebugActivity extends VolleyAbstractActivity {
     }
 
     public void findPositions(View view) {
+        if (state.isProcessing())
+            return;
+
         if(state == State.POSITIONS_START){
             return;
         }else if (state == State.POSITIONS_END){
@@ -517,6 +523,11 @@ public class DebugActivity extends VolleyAbstractActivity {
 
     }
 
+    public void radioChange(View view) {
+        state = State.SIDE_SELECTED;
+        setViewState();
+    }
+
     private void showConfigLayout(int visible) {
         ConstraintLayout configLayout = findViewById(R.id.layout_config);
         configLayout.setVisibility(visible);
@@ -545,10 +556,23 @@ public class DebugActivity extends VolleyAbstractActivity {
         CORNERS,
         CORNERS_SELECTION,
         TRANSFORM,
-        CLASSIFY_START,
-        POSITIONS_START,
+        CLASSIFY_START(true),
+        CLASSIFY_END,
+        POSITIONS_START(true),
         POSITIONS_END,
-        CLASSIFY_END, IMAGE_PROCESSING;
+        IMAGE_PROCESSING;
+
+        private boolean processing;
+        State() {
+            this.processing = false;
+        }
+        State(boolean processing) {
+            this.processing = processing;
+        }
+
+        public boolean isProcessing() {
+            return processing;
+        }
     }
 
 

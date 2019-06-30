@@ -21,14 +21,14 @@ import java.util.PriorityQueue;
 public class YoloV3Classifier implements Classifier {
 
     // Only return this many results with at least this confidence.
-    private static final int MAX_RESULTS = 15;
+    private static final int MAX_RESULTS = 30;
 
     private static final int NUM_CLASSES = 80;
 
     private static final int NUM_BOXES_PER_BLOCK = 3 ;
 
-    private final static float OVERLAP_THRESHOLD = 0.3f;
-    public static final float CONFIDENCE_THRESHOLD = 0.001f;
+    private final static float OVERLAP_THRESHOLD = 0.25f;
+    public static final float CONFIDENCE_THRESHOLD = 0.0005f;
 
     public static final String FILE_ANDROID_ASSET = "file:///android_asset/";
 
@@ -221,7 +221,7 @@ public class YoloV3Classifier implements Classifier {
 
                     for (int c = 0; c < NUM_CLASSES; c++) {
                         final float confidenceInClass = classes[c] * confidence;
-                        if (confidence > CONFIDENCE_THRESHOLD) {
+                        if (confidenceInClass > CONFIDENCE_THRESHOLD) {
 //                            Log.v(TAG, String.format("%s (%d) %f %s", labels[c], c, confidenceInClass, rect));
                             pq.add(new Recognition("" + offset, labels[c], confidenceInClass, rect));
                         }

@@ -6,8 +6,8 @@ import org.opencv.core.Point;
 
 public class LineFunction {
 
-    private static final double EPSILON = 4;
-    private static final double MARGIN = 7;
+    private static final double EPSILON = 10;
+    private static final double MARGIN = 10;
     private Double m,b;
     public double xStart;
     public double yStart;
