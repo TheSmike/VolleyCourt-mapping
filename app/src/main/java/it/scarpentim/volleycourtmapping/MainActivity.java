@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,6 +13,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+
+import java.util.List;
+
+import it.scarpentim.volleycourtmapping.exception.AppException;
 
 public class MainActivity extends VolleyAbstractActivity {
 
@@ -125,8 +131,16 @@ public class MainActivity extends VolleyAbstractActivity {
     public void sideSelected(boolean leftSide) {
         tvMsg.setText(R.string.processing);
         sideSelectorHandler.disableSelection();
-        DigitalizationTask computeTask = new DigitalizationTask(leftSide);
-        computeTask.execute();
+        try {
+            List<Point> corners = findCorners(sampledImage);
+            DigitalizationTask computeTask = new DigitalizationTask(leftSide, corners);
+            computeTask.execute();
+        } catch (AppException e) {
+            Log.w(TAG, "Corners not found automatically");
+            onTouchListener.enable();
+            toast(this.getString(R.string.lines_not_detected) +  ".\n" + getString(R.string.try_manually));
+        }
+
     }
 
     protected void hideSelector() {
@@ -134,8 +148,8 @@ public class MainActivity extends VolleyAbstractActivity {
     }
 
     @Override
-    protected void onPostExecuteDigitalizationTask() {
-        super.onPostExecuteDigitalizationTask();
+    protected void onPostExecuteDigitalizationTask(boolean success) {
+        super.onPostExecuteDigitalizationTask(success);
         hideSelector();
     }
 }

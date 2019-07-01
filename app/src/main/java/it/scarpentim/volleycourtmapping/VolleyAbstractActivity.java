@@ -34,6 +34,7 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
     protected Mat sampledImage = null;
     protected ImageSupport imageSupport = null;
     protected VolleyParams volleyParams;
+    protected OnVolleyTouchHandler onTouchListener;
 
     private static Classifier classifier;
 
@@ -48,6 +49,7 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         volleyParams = new VolleyParams(this);
+        onTouchListener = new OnVolleyTouchHandler(this);
         selectedImagePath = volleyParams.getLastImage();
         initClassifier();
         imageSupport = new ImageSupport(this, classifier.getLabels());
@@ -86,19 +88,28 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
         return corners;
     }
 
-    private void toast(String msg) {
+    protected void toast(String msg) {
         Context context = getApplicationContext();
         int duration = Toast.LENGTH_LONG;
         Toast toast = Toast.makeText(context, msg, duration);
         toast.show();
     }
 
+    protected void toast(int idMsg) {
+        Context context = getApplicationContext();
+        int duration = Toast.LENGTH_LONG;
+        Toast toast = Toast.makeText(context, idMsg, duration);
+        toast.show();
+    }
+
     protected class DigitalizationTask extends AsyncTask<Mat, String, Mat> {
 
         private boolean leftSide;
+        private List<Point> corners;
 
-        public DigitalizationTask(boolean leftSide) {
+        public DigitalizationTask(boolean leftSide, List<Point> corners) {
             this.leftSide = leftSide;
+            this.corners = corners;
         }
 
         @Override
@@ -110,7 +121,6 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
                 else
                     image = sampledImage;
 
-                List<Point> corners = findCorners(image );
                 if (corners != null) {
                     //Mat correctedImage = imageSupport.projectOnHalfCourt(corners, sampledImage);
                     //return correctedImage;
@@ -137,7 +147,7 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
                 } else {
                     return null;
                 }
-            }catch (AppException e){
+            }catch (Exception e){
                 e.printStackTrace();
                 publishProgress(e.getMessage());
                 return null;
@@ -154,16 +164,18 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
         protected void onPostExecute(Mat mat) {
             if( mat == null) {
                 showMessage(R.string.badFinish);
+                onPostExecuteDigitalizationTask(false);
             }else{
                 super.onPostExecute(mat);
                 showImage(mat);
                 showMessage(R.string.finished);
+                onPostExecuteDigitalizationTask(true);
             }
-            onPostExecuteDigitalizationTask();
+
         }
     }
 
-    protected void onPostExecuteDigitalizationTask(){
+    protected void onPostExecuteDigitalizationTask(boolean success){
 
     }
 

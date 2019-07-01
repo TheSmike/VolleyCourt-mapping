@@ -862,7 +862,7 @@ public class ImageSupport {
         }
 
         if (minIntersectionLineIdx == -1 || secondMinIntersectionLineIdx == -1)
-            throw new AppException("Volleybal court lines cannot be automatically detected");
+            throw new AppException(activity.getString(R.string.lines_not_detected));
 
         LineIntersection lineIntersection1 = new LineIntersection(fzs.get(minIntersectionLineIdx), minIntersection);
         LineIntersection lineIntersection2 = new LineIntersection(fzs.get(secondMinIntersectionLineIdx), secondMinIntersection);
@@ -1031,5 +1031,21 @@ public class ImageSupport {
         Mat retMat = new Mat();
         Core.flip(image, retMat, 1 );
         return retMat;
+    }
+
+    public List<org.opencv.core.Point> flipCorners(List<org.opencv.core.Point> corners) {
+
+        Log.d(TAG, "corners before flip: " + String.valueOf(corners));
+        List<org.opencv.core.Point> flippedCorners = new ArrayList<>();
+        int xAxisTmp = imageWidth / 2;
+        for (org.opencv.core.Point corner : corners) {
+            double newX = corner.x - xAxisTmp;
+            newX = -newX;
+            newX = newX + xAxisTmp - 1;
+            flippedCorners.add(new org.opencv.core.Point(newX, corner.y));
+        }
+        Log.d(TAG, "corners after flip: " + String.valueOf(flippedCorners));
+        return flippedCorners;
+
     }
 }

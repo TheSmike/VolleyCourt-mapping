@@ -76,6 +76,7 @@ class OnSideSelectorHandler implements View.OnTouchListener {
         return false;
     }
 
+
     public Mat drawSideSelector() {
         imageWidth = activity.getImageWidth();
         imageHeight = activity.getImageHeight();

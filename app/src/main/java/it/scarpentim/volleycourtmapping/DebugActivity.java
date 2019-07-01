@@ -14,6 +14,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,8 +36,6 @@ import it.scarpentim.volleycourtmapping.exception.AppException;
 public class DebugActivity extends VolleyAbstractActivity {
 
     VolleySeekBarHandler seekBarHandler;
-    OnVolleyTouchHandler onTouchListener;
-
     private Mat drawedImage;
 
     TextView tvDebugMsg;
@@ -61,14 +60,17 @@ public class DebugActivity extends VolleyAbstractActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_debug);
         seekBarHandler = new VolleySeekBarHandler(this, volleyParams);
-        onTouchListener = new OnVolleyTouchHandler(this);
         findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
         tvDebugMsg = findViewById(R.id.tvDebugMsg);
         rbLeft = findViewById(R.id.radio_left);
         rbRight = findViewById(R.id.radio_right);
-        rbLeft.setChecked(false);
-        rbRight.setChecked(false);
+        resetRadioButton();
 //        createColorPicker();
+    }
+
+    private void resetRadioButton() {
+        RadioGroup rg = findViewById(R.id.radioGroup);
+        rg.clearCheck();
     }
 
     private void createColorPicker() {
@@ -266,15 +268,6 @@ public class DebugActivity extends VolleyAbstractActivity {
         }
     };
 
-
-
-    private void toast(String msg) {
-        Context context = getApplicationContext();
-        int duration = Toast.LENGTH_LONG;
-        Toast toast = Toast.makeText(context, msg, duration);
-        toast.show();
-    }
-
     @Override
     protected void showMessage(int stringId) {
         tvDebugMsg.setText(stringId);
@@ -367,7 +360,7 @@ public class DebugActivity extends VolleyAbstractActivity {
             } else {
                 state = State.TRANSFORM;
                 Mat image = flipIfNeeded(sampledImage);
-                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, image);
+                Mat correctedImage = imageSupport.projectOnHalfCourt(flipCornersIfNeeded(corners), image);
                 showImage(flipIfNeeded(correctedImage));
             }
         }else {
@@ -376,6 +369,13 @@ public class DebugActivity extends VolleyAbstractActivity {
         }
 
         setViewState();
+    }
+
+    private List<Point> flipCornersIfNeeded(List<Point> corners) {
+        if(isLeft())
+            return imageSupport.flipCorners(corners);
+        else
+            return corners;
     }
 
     public void classifyImage(View view){
@@ -403,23 +403,41 @@ public class DebugActivity extends VolleyAbstractActivity {
 
         if(state == State.POSITIONS_START){
             return;
-        }else if (state == State.POSITIONS_END){
+        }else if (state == State.POSITIONS_END_OK){
             state = State.SIDE_SELECTED;
             show = ShowType.IMAGE;
             showImage();
-        }else {
-            state = State.POSITIONS_START;
-            DigitalizationTask computeTask = new DigitalizationTask(isLeft());
-            computeTask.execute();
+        }else if (state == State.CORNERS_SELECTION) {
+            corners = onTouchListener.getCorners();
+            if (corners.size() != 4) {
+                toast("Select 4 vertices before applying the transformation");
+            } else {
+                state = State.POSITIONS_START;
+                DigitalizationTask computeTask = new DigitalizationTask(isLeft(), flipCornersIfNeeded(corners));
+                computeTask.execute();
+            }
+        }else if (state == State.CORNERS){
+            if (corners == null || corners.size() != 4){
+                toast(R.string.corners_before);
+            }else {
+                state = State.POSITIONS_START;
+                DigitalizationTask computeTask = new DigitalizationTask(isLeft(), corners);
+                computeTask.execute();
+            }
+        }else{
+            toast(R.string.corners_before);
         }
         setViewState();
 
     }
 
     @Override
-    protected void onPostExecuteDigitalizationTask() {
-        super.onPostExecuteDigitalizationTask();
-        state = State.POSITIONS_END;
+    protected void onPostExecuteDigitalizationTask(boolean success) {
+        super.onPostExecuteDigitalizationTask(success);
+        if (success)
+            state = State.POSITIONS_END_OK;
+        else
+            state = State.POSITIONS_END_ERR;
         setViewState();
     }
 
@@ -498,17 +516,17 @@ public class DebugActivity extends VolleyAbstractActivity {
                 msgView.setText(R.string.processing);
                 btnTransform.setText(R.string.transform);
                 btnPositions.setText(R.string.goback);
-                showConfigLayout(View.GONE);
-                onTouchListener.reset();
-                corners = null;
                 break;
-            case POSITIONS_END:
-                msgView.setText(R.string.finished);
+            case POSITIONS_END_OK:
                 btnTransform.setText(R.string.transform);
                 btnPositions.setText(R.string.goback);
                 showConfigLayout(View.GONE);
                 onTouchListener.reset();
                 corners = null;
+                break;
+            case POSITIONS_END_ERR:
+                btnTransform.setText(R.string.transform);
+                btnPositions.setText(R.string.positions);
                 break;
             case CLASSIFY_START:
                 btnTransform.setText(R.string.transform);
@@ -559,8 +577,8 @@ public class DebugActivity extends VolleyAbstractActivity {
         CLASSIFY_START(true),
         CLASSIFY_END,
         POSITIONS_START(true),
-        POSITIONS_END,
-        IMAGE_PROCESSING;
+        POSITIONS_END_OK,
+        IMAGE_PROCESSING, POSITIONS_END_ERR;
 
         private boolean processing;
         State() {
