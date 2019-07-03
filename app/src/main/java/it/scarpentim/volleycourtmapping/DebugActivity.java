@@ -1,6 +1,5 @@
 package it.scarpentim.volleycourtmapping;
 
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -37,6 +36,7 @@ public class DebugActivity extends VolleyAbstractActivity {
 
     VolleySeekBarHandler seekBarHandler;
     private Mat drawedImage;
+    private Mat cornersImage;
 
     TextView tvDebugMsg;
     RadioButton rbLeft;
@@ -45,6 +45,7 @@ public class DebugActivity extends VolleyAbstractActivity {
     private State state = State.START;
 
     private List<Point> corners = null;
+
 
     private enum ShowType{
         IMAGE,
@@ -175,6 +176,7 @@ public class DebugActivity extends VolleyAbstractActivity {
         }
     }
 
+    @Override
     protected boolean loadImageFromPath() {
         boolean loaded = super.loadImageFromPath();
         if(loaded){
@@ -305,7 +307,7 @@ public class DebugActivity extends VolleyAbstractActivity {
             Toast.makeText(this, R.string.no_image_uploaded, Toast.LENGTH_SHORT).show();
             return;
         }
-
+        onTouchListener.reset();
         Mat image = flipIfNeeded(sampledImage);
         Mat maskedMat = imageSupport.colorMask(image);
         Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
@@ -326,7 +328,8 @@ public class DebugActivity extends VolleyAbstractActivity {
         for (Point corner : corners) {
             Imgproc.circle(drawedMat, corner, (int) 20, new Scalar(0,100,255),3);
         }
-        showImage(flipIfNeeded(drawedMat));
+        cornersImage = flipIfNeeded(drawedMat);
+        showImage(cornersImage);
 
         this.corners = corners;
         setViewState();
@@ -334,40 +337,29 @@ public class DebugActivity extends VolleyAbstractActivity {
         //showImage(correctedImage);
     }
 
+    @Override
+    public void onFinishManuallyCornersSelection(List<Point> corners){
+        cornersImage = onTouchListener.getImage();
+        this.corners = corners;
+    }
+
     public void transformImage(View view) {
         if (state.isProcessing())
             return;
 
         if (state == State.TRANSFORM) {
-            state = State.SIDE_SELECTED;
+            state = State.CORNERS;
             showImage(sampledImage);
-
-        } else if (state == State.CORNERS){
-            if (corners.size() != 4) {
-                toast("The process failed to uniquely identify the 4 vertices!");
-            } else {
-                state = State.TRANSFORM;
-                ((TextView) view).setText(R.string.goback);
-                Mat image = flipIfNeeded(sampledImage);
-                Mat correctedImage = imageSupport.projectOnHalfCourt(corners, image);
-                correctedImage = flipIfNeeded(correctedImage);
-                showImage(correctedImage);
-            }
-        }else if (state == State.CORNERS_SELECTION){
-            corners = onTouchListener.getCorners();
-            if (corners.size() != 4) {
-                toast("Select 4 vertices before applying the transformation");
-            } else {
-                state = State.TRANSFORM;
-                Mat image = flipIfNeeded(sampledImage);
-                Mat correctedImage = imageSupport.projectOnHalfCourt(flipCornersIfNeeded(corners), image);
-                showImage(flipIfNeeded(correctedImage));
-            }
-        }else {
-            toast("The process to identify the 4 vertices has not been executed, press the Corners button before");
-            return;
+        }else if (corners == null || corners.size() != 4) {
+            toast(R.string.corners_before);
+        } else {
+            state = State.TRANSFORM;
+            ((TextView) view).setText(R.string.goback);
+            Mat image = flipIfNeeded(sampledImage);
+            Mat correctedImage = imageSupport.projectOnHalfCourt(corners, image);
+            correctedImage = flipIfNeeded(correctedImage);
+            showImage(correctedImage);
         }
-
         setViewState();
     }
 
@@ -404,28 +396,15 @@ public class DebugActivity extends VolleyAbstractActivity {
         if(state == State.POSITIONS_START){
             return;
         }else if (state == State.POSITIONS_END_OK){
-            state = State.SIDE_SELECTED;
+            state = State.CORNERS;
             show = ShowType.IMAGE;
             showImage();
-        }else if (state == State.CORNERS_SELECTION) {
-            corners = onTouchListener.getCorners();
-            if (corners.size() != 4) {
-                toast("Select 4 vertices before applying the transformation");
-            } else {
-                state = State.POSITIONS_START;
-                DigitalizationTask computeTask = new DigitalizationTask(isLeft(), flipCornersIfNeeded(corners));
-                computeTask.execute();
-            }
-        }else if (state == State.CORNERS){
-            if (corners == null || corners.size() != 4){
-                toast(R.string.corners_before);
-            }else {
-                state = State.POSITIONS_START;
-                DigitalizationTask computeTask = new DigitalizationTask(isLeft(), corners);
-                computeTask.execute();
-            }
-        }else{
+        }else if (corners == null || corners.size() != 4) {
             toast(R.string.corners_before);
+        } else {
+            state = State.POSITIONS_START;
+            DigitalizationTask computeTask = new DigitalizationTask(isLeft(), corners, false);
+            computeTask.execute();
         }
         setViewState();
 
@@ -467,8 +446,7 @@ public class DebugActivity extends VolleyAbstractActivity {
                 btnPositions.setEnabled(false);
                 btnClassify.setEnabled(false);
                 btnCorners.setEnabled(false);
-                rbLeft.setChecked(false);
-                rbRight.setChecked(false);
+                resetRadioButton();
                 break;
             case IMAGE_PROCESSING:
                 btnTransform.setText(R.string.transform);
@@ -495,6 +473,7 @@ public class DebugActivity extends VolleyAbstractActivity {
                 btnPositions.setText(R.string.positions);
                 showConfigLayout(View.VISIBLE);
                 msgView.setText(R.string.empty);
+                showImage(cornersImage);
                 break;
             case CORNERS_SELECTION:
                 show = ShowType.IMAGE;
@@ -509,8 +488,6 @@ public class DebugActivity extends VolleyAbstractActivity {
                 btnPositions.setText(R.string.positions);
                 showConfigLayout(View.GONE);
                 msgView.setText(R.string.empty);
-                onTouchListener.reset();
-                corners = null;
                 break;
             case POSITIONS_START:
                 msgView.setText(R.string.processing);
@@ -521,8 +498,6 @@ public class DebugActivity extends VolleyAbstractActivity {
                 btnTransform.setText(R.string.transform);
                 btnPositions.setText(R.string.goback);
                 showConfigLayout(View.GONE);
-                onTouchListener.reset();
-                corners = null;
                 break;
             case POSITIONS_END_ERR:
                 btnTransform.setText(R.string.transform);

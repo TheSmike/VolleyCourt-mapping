@@ -22,7 +22,6 @@ import java.util.List;
 
 import it.scarpentim.volleycourtmapping.classification.Classifier;
 import it.scarpentim.volleycourtmapping.classification.ClassifierFactory;
-import it.scarpentim.volleycourtmapping.exception.AppException;
 import it.scarpentim.volleycourtmapping.image.ImageSupport;
 
 public abstract class VolleyAbstractActivity extends AppCompatActivity {
@@ -75,19 +74,6 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
             classifier = ClassifierFactory.getYolov3Instance(this);
     }
 
-    public List<Point> findCorners(Mat image) throws AppException {
-        if (image == null) {
-            toast("Nessuna immagine caricata");
-            return null;
-        }
-
-        Mat maskedMat = imageSupport.colorMask(image);
-        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
-
-        List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
-        return corners;
-    }
-
     protected void toast(String msg) {
         Context context = getApplicationContext();
         int duration = Toast.LENGTH_LONG;
@@ -106,10 +92,12 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
 
         private boolean leftSide;
         private List<Point> corners;
+        private boolean digitalVersion;
 
-        public DigitalizationTask(boolean leftSide, List<Point> corners) {
+        public DigitalizationTask(boolean leftSide, List<Point> corners, boolean digitalVersion) {
             this.leftSide = leftSide;
             this.corners = corners;
+            this.digitalVersion = digitalVersion;
         }
 
         @Override
@@ -136,7 +124,7 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
 
                     Mat resized = imageSupport.resizeForYolo(image, classifier.getImageSize());
                     List<Classifier.Recognition> recognitions = classifier.recognizeImage(imageSupport.matToBitmap(resized));
-                    Mat retMat = imageSupport.digitalization(image, corners, recognitions);
+                    Mat retMat = imageSupport.digitalization(image, corners, recognitions, digitalVersion);
                     if (leftSide)
                         retMat = imageSupport.flip(retMat);
 
@@ -253,6 +241,8 @@ public abstract class VolleyAbstractActivity extends AppCompatActivity {
     protected void executeAsyncClassification(Mat sampledImage, boolean isToFlip) {
         new ClassifierTask(isToFlip).execute(sampledImage);
     }
+
+    public abstract void onFinishManuallyCornersSelection(List<Point> corners);
 
     protected void onPostExecuteClassifierTask(){
 

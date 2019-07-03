@@ -9,6 +9,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -27,6 +28,12 @@ public class MainActivity extends VolleyAbstractActivity {
 
     protected TextView tvMsg;
 
+    protected Button btnGoBack;
+    protected Button btnGobackManCorners;
+    protected Button btnProcessManCorners;
+    private boolean leftSide;
+    private boolean processing = false;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,13 +41,19 @@ public class MainActivity extends VolleyAbstractActivity {
         ivSelector = findViewById(R.id.ivSelector);
         sideSelectorHandler = new OnSideSelectorHandler(this);
         ivSelector.setOnTouchListener(sideSelectorHandler);
+        findViewById(R.id.ivPreview).setOnTouchListener(onTouchListener);
+        btnGoBack = findViewById(R.id.btn_goback);
+        btnGobackManCorners = findViewById(R.id.btn_gobackManCorners);
+        btnProcessManCorners = findViewById(R.id.btn_computeManCorners);
     }
 
     @Override
     public void onResume() {
         super.onResume();
         tvMsg = findViewById(R.id.tvDebugMsg);
+        selectedImagePath = volleyParams.getLastImage();
         showMessage(R.string.court_side_quest);
+        resetAll();
     }
 
     @Override
@@ -80,7 +93,9 @@ public class MainActivity extends VolleyAbstractActivity {
         ivSelector.setAlpha(1f);
         ivSelector.setVisibility(View.VISIBLE);
         sideSelectorHandler.reset();
-
+        btnGobackManCorners.setVisibility(View.GONE);
+        btnProcessManCorners.setVisibility(View.GONE);
+        btnGoBack.setVisibility(View.GONE);
     }
 
     @Override
@@ -100,8 +115,14 @@ public class MainActivity extends VolleyAbstractActivity {
         super.loadImageFromPath();
         Mat sideSelector = sideSelectorHandler.drawSideSelector();
         showSideSelector(sideSelector);
+        onTouchListener.setImage(sampledImage);
         resetAll();
         return false;
+    }
+
+    @Override
+    public void onFinishManuallyCornersSelection(List<Point> corners) {
+        btnProcessManCorners.setEnabled(true);
     }
 
     @Override
@@ -129,27 +150,83 @@ public class MainActivity extends VolleyAbstractActivity {
     }
 
     public void sideSelected(boolean leftSide) {
+        if (processing)
+            return;
+
+        this.leftSide = leftSide;
         tvMsg.setText(R.string.processing);
         sideSelectorHandler.disableSelection();
         try {
-            List<Point> corners = findCorners(sampledImage);
-            DigitalizationTask computeTask = new DigitalizationTask(leftSide, corners);
+            List<Point> corners = findCorners(sampledImage, leftSide);
+            DigitalizationTask computeTask = new DigitalizationTask(leftSide, corners, true);
             computeTask.execute();
+            processing = true;
         } catch (AppException e) {
             Log.w(TAG, "Corners not found automatically");
             onTouchListener.enable();
-            toast(this.getString(R.string.lines_not_detected) +  ".\n" + getString(R.string.try_manually));
+            //toast(this.getString(R.string.lines_not_detected) +  ".\n" + getString(R.string.try_manually));
+            tvMsg.setText("Warning!\n" + getString(R.string.lines_not_detected )+ ". " + getString(R.string.try_manually));
+
+            btnGobackManCorners.setVisibility(View.VISIBLE);
+            btnProcessManCorners.setVisibility(View.VISIBLE);
+            ivSelector.setVisibility(View.GONE);
         }
 
     }
 
-    protected void hideSelector() {
-        ivSelector.setVisibility(View.GONE);
+    public List<Point> findCorners(Mat image, boolean isToFlip) throws AppException {
+        if (image == null) {
+            toast("Nessuna immagine caricata");
+            return null;
+        }
+
+
+        Mat maskedMat = imageSupport.colorMask( flipIfNeeded(image, isToFlip) );
+        Mat houghMat = imageSupport.houghTransform(maskedMat, volleyParams);
+
+        List<Point> corners = imageSupport.findCourtExtremesFromRigthView(houghMat);
+        return corners;
+    }
+
+    private Mat flipIfNeeded(Mat image, boolean isToFlip) {
+        if (isToFlip)
+            return imageSupport.flip(image);
+        else
+            return image;
     }
 
     @Override
     protected void onPostExecuteDigitalizationTask(boolean success) {
+        processing = false;
         super.onPostExecuteDigitalizationTask(success);
-        hideSelector();
+        ivSelector.setVisibility(View.GONE);
+        btnProcessManCorners.setVisibility(View.GONE);
+        btnGobackManCorners.setVisibility(View.GONE);
+        btnGoBack.setText(R.string.goback);
+        btnGoBack.setVisibility(View.VISIBLE);
+    }
+
+    public void goBack(View view) {
+        ivSelector.setVisibility(View.VISIBLE);
+        btnGoBack.setVisibility(View.GONE);
+        sideSelectorHandler.reset();
+        Mat sideSelector = sideSelectorHandler.drawSideSelector();
+        showSideSelector(sideSelector);
+        showMessage(R.string.court_side_quest);
+        showImage();
+        btnGobackManCorners.setVisibility(View.GONE);
+        btnProcessManCorners.setVisibility(View.GONE);
+        btnProcessManCorners.setEnabled(false);
+        onTouchListener.reset();
+    }
+
+    public void processManuallyCorners(View view) {
+        if (processing)
+            return;
+        tvMsg.setText(R.string.processing);
+        sideSelectorHandler.disableSelection();
+        DigitalizationTask computeTask = new DigitalizationTask(leftSide, onTouchListener.getCorners(), false);
+        computeTask.execute();
+
     }
 }

@@ -26,7 +26,7 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        if(enable) {
+        if(enable && mCorners.size() < 4) {
             if (image == null)
                 throw new RuntimeException("Immagine non caricata corettamente");
 
@@ -39,6 +39,9 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
             mCorners.add(corner);
             Imgproc.circle(image, corner, (int) 20, new Scalar(0, 100, 255), 3);
             activity.showImage(image);
+
+            if(mCorners.size() == 4)
+                activity.onFinishManuallyCornersSelection(mCorners);
         }
         return false;
     }
@@ -65,5 +68,9 @@ class OnVolleyTouchHandler implements View.OnTouchListener {
 
     public boolean isEnable() {
         return enable;
+    }
+
+    public Mat getImage() {
+        return image;
     }
 }

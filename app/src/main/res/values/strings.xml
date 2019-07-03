@@ -21,10 +21,11 @@
     <string name="left">left</string>
     <string name="right">right</string>
     <string name="select_side">Select court side</string>
-    <string name="lines_not_detected">Volleybal court lines cannot be automatically detected</string>
-    <string name="try_manually">Try selecting points manually</string>
+    <string name="lines_not_detected">Volleyball court lines cannot be automatically detected</string>
+    <string name="try_manually">Please select last 6 meters of a half field</string>
     <string name="no_image_uploaded">No image uploaded</string>
     <string name="positions">positions</string>
     <string name="select_4_corners">Select the 4 corners</string>
     <string name="corners_before">Press Corners before and eventually follow CORNER detection procedure</string>
+    <string name="compute">Compute</string>
 </resources>

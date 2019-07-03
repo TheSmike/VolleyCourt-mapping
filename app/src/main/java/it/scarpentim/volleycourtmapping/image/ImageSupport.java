@@ -1,7 +1,10 @@
 package it.scarpentim.volleycourtmapping.image;
 
+import android.content.Context;
+import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Point;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -19,6 +22,10 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.utils.Converters;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -958,13 +965,19 @@ public class ImageSupport {
     }
 
 
-    public Mat digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions) {
+    public Mat digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions, boolean digitalVersion) {
 
-        Mat correctedImage = projectOnHalfCourt(corners, sampledImage);
+        Mat correctedImage;
+        if (digitalVersion) {
+            correctedImage = resizeForYolo(loadDigitalCourt(), sampledImage.cols());
+        } else {
+            correctedImage = projectOnHalfCourt(corners, sampledImage);
+        }
 
         int maxSize = Math.min(screenHeight, screenWidth);
         corners = reorderCorner(corners);
         Mat projectiveMat = courtProjectiveMat(corners, maxSize);
+
 
         int counter = 0;
         Mat retMat = sampledImage.clone();
@@ -1010,8 +1023,11 @@ public class ImageSupport {
                 Log.d(TAG, "z => " + z);
 
 
+                double mid = sampledImage.cols() / 2;
                 if( x > 0 && x < correctedImage.cols() && y > 0 && y < correctedImage.rows()) {
-                    Imgproc.circle(correctedImage, new org.opencv.core.Point(x, y), 40, new Scalar(255, 153, 0), 5);
+                    double newx = ((x - mid) * 0.9) + mid;
+                    double newy = ((y - mid) * 0.9) + mid;
+                    Imgproc.circle(correctedImage, new org.opencv.core.Point(newx, newy), (int) (40*0.9), new Scalar(255, 153, 0), 5);
                     counter++;
                     if (counter == 6)
                         break;
@@ -1025,6 +1041,43 @@ public class ImageSupport {
             }
         }
         return correctedImage;
+    }
+
+    private Mat loadDigitalCourt() {
+//        InputStream stream = null;
+//
+//        Uri uri = Uri.parse("file:///android_asset/image/digital_court.png");
+//        try {
+//            File file = new File("");
+//            stream = activity.getContentResolver().openInputStream(uri);
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        }
+//
+//        BitmapFactory.Options bmpFactoryOptions = new BitmapFactory.Options();
+//        bmpFactoryOptions.inPreferredConfig = Bitmap.Config.ARGB_8888;
+//
+//        Bitmap bmp = BitmapFactory.decodeStream(stream, null, bmpFactoryOptions);
+//        Mat ImageMat = new Mat();
+        Mat mat = new Mat();
+        Bitmap bmp = getBitmapFromAsset(activity, "digital_court.png");
+        Utils.bitmapToMat(bmp, mat);
+        return mat;
+    }
+
+    public static Bitmap getBitmapFromAsset(Context context, String filePath) {
+        AssetManager assetManager = context.getAssets();
+
+        InputStream istr;
+        Bitmap bitmap = null;
+        try {
+            istr = assetManager.open(filePath);
+            bitmap = BitmapFactory.decodeStream(istr);
+        } catch (IOException e) {
+            // handle exception
+        }
+
+        return bitmap;
     }
 
     public Mat flip(Mat image) {
