@@ -968,10 +968,16 @@ public class ImageSupport {
     public Mat digitalization(Mat sampledImage, List<org.opencv.core.Point> corners, List<Classifier.Recognition> recognitions, boolean digitalVersion) {
 
         Mat correctedImage;
+        double ratio;
+        double margin;
         if (digitalVersion) {
             correctedImage = resizeForYolo(loadDigitalCourt(), sampledImage.cols());
+            margin = sampledImage.cols() * (1.0/20.0);
+            ratio = 18.0 / 20.0;
         } else {
             correctedImage = projectOnHalfCourt(corners, sampledImage);
+            margin = 0;
+            ratio = 1;
         }
 
         int maxSize = Math.min(screenHeight, screenWidth);
@@ -981,6 +987,8 @@ public class ImageSupport {
 
         int counter = 0;
         Mat retMat = sampledImage.clone();
+
+
         for (Classifier.Recognition box : recognitions) {
             Log.i(TAG, "orderd box --> " + String.valueOf(box));
             if (box.getTitle().equals("person") && box.getConfidence() > CONFIDENCE_THRESHOLD) {
@@ -1023,11 +1031,11 @@ public class ImageSupport {
                 Log.d(TAG, "z => " + z);
 
 
-                double mid = sampledImage.cols() / 2;
+
                 if( x > 0 && x < correctedImage.cols() && y > 0 && y < correctedImage.rows()) {
-                    double newx = ((x - mid) * 0.9) + mid;
-                    double newy = ((y - mid) * 0.9) + mid;
-                    Imgproc.circle(correctedImage, new org.opencv.core.Point(newx, newy), (int) (40*0.9), new Scalar(255, 153, 0), 5);
+                    double newx = (x * ratio) + margin;
+                    double newy = (y * ratio) + margin;
+                    Imgproc.circle(correctedImage, new org.opencv.core.Point(newx, newy), (int)(ratio*40), new Scalar(255, 153, 0), 5);
                     counter++;
                     if (counter == 6)
                         break;
