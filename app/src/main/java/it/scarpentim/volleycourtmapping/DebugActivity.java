@@ -340,7 +340,7 @@ public class DebugActivity extends VolleyAbstractActivity {
     @Override
     public void onFinishManuallyCornersSelection(List<Point> corners){
         cornersImage = onTouchListener.getImage();
-        this.corners = corners;
+        this.corners = flipCornersIfNeeded(corners);
     }
 
     public void transformImage(View view) {
@@ -425,6 +425,9 @@ public class DebugActivity extends VolleyAbstractActivity {
     }
 
     private void setViewState(){
+
+        if (sampledImage == null)
+            return;
 
         Button btnTransform = findViewById(R.id.btn_transform);
         Button btnPositions = findViewById(R.id.btn_positions);

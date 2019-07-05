@@ -52,7 +52,6 @@ public class MainActivity extends VolleyAbstractActivity {
         super.onResume();
         tvMsg = findViewById(R.id.tvDebugMsg);
         selectedImagePath = volleyParams.getLastImage();
-        showMessage(R.string.court_side_quest);
         resetAll();
     }
 
@@ -91,7 +90,14 @@ public class MainActivity extends VolleyAbstractActivity {
 
     private void resetAll() {
         ivSelector.setAlpha(1f);
-        ivSelector.setVisibility(View.VISIBLE);
+        if (sampledImage != null) {
+            ivSelector.setVisibility(View.VISIBLE);
+            showMessage(R.string.court_side_quest);
+        }
+        else {
+            ivSelector.setVisibility(View.GONE);
+            showMessage(R.string.clik_open);
+        }
         sideSelectorHandler.reset();
         btnGobackManCorners.setVisibility(View.GONE);
         btnProcessManCorners.setVisibility(View.GONE);
@@ -112,12 +118,13 @@ public class MainActivity extends VolleyAbstractActivity {
 
     @Override
     protected boolean loadImageFromPath() {
-        super.loadImageFromPath();
+        if (!super.loadImageFromPath())
+            return false;
         Mat sideSelector = sideSelectorHandler.drawSideSelector();
         showSideSelector(sideSelector);
         onTouchListener.setImage(sampledImage);
         resetAll();
-        return false;
+        return true;
     }
 
     @Override
@@ -147,6 +154,7 @@ public class MainActivity extends VolleyAbstractActivity {
     public void showSideSelector(Mat img) {
         Bitmap bitmap = imageSupport.matToBitmap(img);
         ivSelector.setImageBitmap(bitmap);
+        ivSelector.setVisibility(View.VISIBLE);
     }
 
     public void sideSelected(boolean leftSide) {
@@ -207,6 +215,9 @@ public class MainActivity extends VolleyAbstractActivity {
     }
 
     public void goBack(View view) {
+        if (processing)
+            return;
+
         ivSelector.setVisibility(View.VISIBLE);
         btnGoBack.setVisibility(View.GONE);
         sideSelectorHandler.reset();
@@ -225,8 +236,16 @@ public class MainActivity extends VolleyAbstractActivity {
             return;
         tvMsg.setText(R.string.processing);
         sideSelectorHandler.disableSelection();
-        DigitalizationTask computeTask = new DigitalizationTask(leftSide, onTouchListener.getCorners(), false);
+        DigitalizationTask computeTask = new DigitalizationTask(leftSide, flipCornersIfNeeded(onTouchListener.getCorners()), true);
         computeTask.execute();
+        processing = true;
 
+    }
+
+    private List<Point> flipCornersIfNeeded(List<Point> corners) {
+        if(this.leftSide)
+            return imageSupport.flipCorners(corners);
+        else
+            return corners;
     }
 }

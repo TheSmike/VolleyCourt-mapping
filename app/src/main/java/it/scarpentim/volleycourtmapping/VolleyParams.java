@@ -16,11 +16,11 @@ public class VolleyParams {
 
     protected static final String LAST_IMAGE = "LAST_IMAGE";
 
-    private static final int DEF_CANNY_MIN = 80;
-    private static final int DEF_CANNY_MAX = 150;
-    private static final int DEF_HOUGH_MAX_DISTANCE = 25;
-    private static final int DEF_HOUGH_MIN_LENGTH = 125;
-    private static final int DEF_HOUGH_VOTES = 20;
+    private static final int DEF_CANNY_MIN = 363;
+    private static final int DEF_CANNY_MAX = 405;
+    private static final int DEF_HOUGH_MAX_DISTANCE = 66;
+    private static final int DEF_HOUGH_MIN_LENGTH = 213;
+    private static final int DEF_HOUGH_VOTES = 55;
 
 
     private final SharedPreferences sharedPref;

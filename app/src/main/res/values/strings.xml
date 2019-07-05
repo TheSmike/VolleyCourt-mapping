@@ -28,4 +28,5 @@
     <string name="select_4_corners">Select the 4 corners</string>
     <string name="corners_before">Press Corners before and eventually follow CORNER detection procedure</string>
     <string name="compute">Compute</string>
+    <string name="clik_open">Open an image first</string>
 </resources>

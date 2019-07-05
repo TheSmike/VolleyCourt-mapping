@@ -751,6 +751,9 @@ public class ImageSupport {
 
         Log.d(TAG, "number of lines : " + fzs.size());
 
+        if(fzs.size() < 4){
+            throw new AppException(activity.getString(R.string.lines_not_detected));
+        }
         LineFunction topBottomRightLine = getTopBottomRightLine(fzs);
 
         List<org.opencv.core.Point> intersections = new ArrayList<>();
